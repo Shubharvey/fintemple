@@ -55,8 +55,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.login({ email, password });
 
-      // ✅ FIX: Make sure we're accessing the response data correctly
-      const userData = response.data?.user || response.user;
+      // ✅ FIXED: Access the response data correctly
+      console.log("Full login response:", response); // Debug log
+      console.log("Login response data:", response.data); // Debug log
+
+      const userData = response.data.user; // Axios puts data in response.data
 
       if (!userData) {
         throw new Error("No user data received");
@@ -68,9 +71,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error("Login error:", error);
 
-      // ✅ FIX: Extract the actual error message from the response
+      // ✅ FIXED: Better error extraction
       const errorMessage =
-        error.response?.data?.error || error.message || "Login failed";
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "Login failed";
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -86,8 +92,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.register({ email, password, name });
 
-      // ✅ FIX: Make sure we're accessing the response data correctly
-      const userData = response.data?.user || response.user;
+      // ✅ FIXED: Access the response data correctly
+      console.log("Full register response:", response); // Debug log
+      console.log("Register response data:", response.data); // Debug log
+
+      const userData = response.data.user; // Axios puts data in response.data
 
       if (!userData) {
         throw new Error("No user data received");
@@ -99,9 +108,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error("Registration error:", error);
 
-      // ✅ FIX: Extract the actual error message from the response
+      // ✅ FIXED: Better error extraction
       const errorMessage =
-        error.response?.data?.error || error.message || "Registration failed";
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        "Registration failed";
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
