@@ -1,10 +1,12 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000/api";
+// ✅ FIX: Use your actual Render backend URL
+const API_BASE_URL = "https://fintemple-backend.onrender.com/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true, // ✅ Add this for cookies/auth
 });
 
 // Add request interceptor for debugging
@@ -15,6 +17,7 @@ api.interceptors.request.use(
       config.method?.toUpperCase(),
       config.url
     );
+    console.log("Full URL:", config.baseURL + config.url); // ✅ Debug full URL
     return config;
   },
   (error) => {
@@ -29,10 +32,25 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    console.error("API error details:", {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    });
+
     // Handle network errors
     if (error.code === "NETWORK_ERROR" || error.message === "Network Error") {
       return Promise.reject(
         new Error("Network error - please check your connection")
+      );
+    }
+
+    // Handle CORS errors specifically
+    if (error.message?.includes("CORS") || error.message?.includes("origin")) {
+      return Promise.reject(
+        new Error("CORS error - please check backend configuration")
       );
     }
 
@@ -47,6 +65,7 @@ api.interceptors.response.use(
   }
 );
 
+// Rest of your API exports remain the same...
 export const tradesAPI = {
   getAll: (params?: any) => api.get("/trades", { params }),
   getById: (id: string) => api.get(`/trades/${id}`),
