@@ -5,7 +5,7 @@ const API_BASE_URL = "https://fintemple-backend.onrender.com/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000, // ✅ Increased timeout for Render
+  timeout: 30000, // ✅ INCREASED to 30 seconds for Render cold starts
   withCredentials: true, // ✅ Add this for cookies/auth
 });
 
