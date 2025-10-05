@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const isProduction = process.env.NODE_ENV === "production";
 
-// ✅ PRODUCTION-READY CORS Configuration
+// ✅ RENDER-SPECIFIC CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, Postman, or server-to-server calls)
@@ -24,15 +24,19 @@ const corsOptions = {
 
     // List of allowed origins
     const allowedOrigins = [
-      process.env.FRONTEND_URL, // Your production frontend URL
+      process.env.FRONTEND_URL, // Your production frontend URL from .env
+      "https://fintemple.onrender.com", // Your actual Render frontend
       "http://localhost:5173", // Vite dev server
       "http://127.0.0.1:5173", // Vite alternative
       "http://localhost:3000", // Create React App
       "http://127.0.0.1:3000", // CRA alternative
     ].filter(Boolean); // Remove any undefined values
 
-    // Check if the origin is in allowed list
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check if the origin is in allowed list OR allow all Render subdomains
+    if (
+      allowedOrigins.indexOf(origin) !== -1 ||
+      origin.endsWith(".onrender.com")
+    ) {
       callback(null, true);
     } else {
       console.warn(`🚫 CORS blocked request from origin: ${origin}`);
@@ -41,13 +45,13 @@ const corsOptions = {
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
-  optionsSuccessStatus: 200, // For legacy browser support
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ✅ Remove or keep debug middleware based on your needs
+// ✅ Debug middleware (only in development)
 app.use((req, res, next) => {
   if (!isProduction) {
     console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
@@ -98,10 +102,8 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`🔧 CORS configured for production and development`);
-  if (!isProduction) {
-    console.log(
-      `📡 Allowed origins: Localhost ports 3000, 5173 + Production URL`
-    );
-  }
+  console.log(`🔧 CORS configured for Render deployment`);
+  console.log(
+    `📡 Allowed origins: fintemple.onrender.com, all onrender.com subdomains + localhost`
+  );
 });
