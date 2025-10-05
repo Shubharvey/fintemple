@@ -1,4 +1,4 @@
-const Database = require("better-sqlite3");
+const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
 let db;
@@ -7,88 +7,68 @@ let isInitialized = false;
 function init() {
   if (isInitialized) return db;
 
-  db = new Database(path.join(__dirname, "trading_journal.db"));
+  db = new sqlite3.Database(path.join(__dirname, "trading_journal.db"));
 
-  // Drop and recreate the trades table with updated CHECK constraint
-  db.exec(`
-    DROP TABLE IF EXISTS trades;
-  `);
+  // Create tables
+  db.serialize(() => {
+    // Users table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        name TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
 
-  // Create users table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      name TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
+    // Trades table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS trades (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        exitTimestamp TEXT,
+        symbol TEXT NOT NULL,
+        instrumentType TEXT NOT NULL,
+        side TEXT NOT NULL,
+        entry REAL NOT NULL,
+        exit REAL,
+        sl REAL,
+        tp REAL,
+        lot REAL,
+        volume REAL,
+        contractSize REAL,
+        pipDecimal REAL,
+        pipValuePerLot REAL,
+        fees REAL DEFAULT 0,
+        tags TEXT,
+        strategy TEXT,
+        marketCondition TEXT,
+        notes TEXT,
+        screenshotUrl TEXT,
+        createdAt TEXT DEFAULT (datetime('now')),
+        updatedAt TEXT DEFAULT (datetime('now'))
+      )
+    `);
 
-  // Create trades table with updated instrument types
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS trades (
-      id TEXT PRIMARY KEY,
-      timestamp TEXT NOT NULL,
-      exitTimestamp TEXT,
-      symbol TEXT NOT NULL,
-      instrumentType TEXT NOT NULL CHECK(instrumentType IN (
-        'forex', 'commodity', 'stock', 'stock-options', 'futures', 
-        'index-option', 'index-future', 'crypto'
-      )),
-      side TEXT NOT NULL CHECK(side IN ('buy', 'sell')),
-      entry REAL NOT NULL,
-      exit REAL,
-      sl REAL,
-      tp REAL,
-      lot REAL,
-      volume REAL,
-      contractSize REAL,
-      pipDecimal REAL,
-      pipValuePerLot REAL,
-      fees REAL DEFAULT 0,
-      tags TEXT,
-      strategy TEXT,
-      marketCondition TEXT,
-      notes TEXT,
-      screenshotUrl TEXT,
-      createdAt TEXT DEFAULT (datetime('now')),
-      updatedAt TEXT DEFAULT (datetime('now'))
-    )
-  `);
-
-  // Create instruments table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS instruments (
-      symbol TEXT PRIMARY KEY,
-      name TEXT,
-      instrumentType TEXT NOT NULL,
-      contractSize REAL DEFAULT 100000,
-      pipDecimal REAL,
-      pipValuePerLot REAL,
-      quoteToAccountRate REAL DEFAULT 1,
-      createdAt TEXT DEFAULT (datetime('now'))
-    )
-  `);
-
-  // Create indexes
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_trades_timestamp ON trades(timestamp);
-    CREATE INDEX IF NOT EXISTS idx_trades_exitTimestamp ON trades(exitTimestamp);
-    CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol);
-    CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades(strategy);
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    
-    -- Add to your existing indexes
-    CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
-    CREATE INDEX IF NOT EXISTS idx_trades_user_id ON trades(user_id);
-  `);
+    // Instruments table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS instruments (
+        symbol TEXT PRIMARY KEY,
+        name TEXT,
+        instrumentType TEXT NOT NULL,
+        contractSize REAL DEFAULT 100000,
+        pipDecimal REAL,
+        pipValuePerLot REAL,
+        quoteToAccountRate REAL DEFAULT 1,
+        createdAt TEXT DEFAULT (datetime('now'))
+      )
+    `);
+  });
 
   isInitialized = true;
-  console.log(
-    "Database initialized successfully with users table and updated instrument types"
-  );
+  console.log("Database initialized successfully with sqlite3");
   return db;
 }
 
@@ -100,4 +80,32 @@ function getDb() {
   return db;
 }
 
-module.exports = { init, getDb };
+// Helper function for async queries
+function runQuery(query, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(query, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+}
+
+function getQuery(query, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+function allQuery(query, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(query, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+}
+
+module.exports = { init, getDb, runQuery, getQuery, allQuery };

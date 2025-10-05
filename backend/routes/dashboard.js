@@ -1,9 +1,8 @@
 const express = require("express");
-const db = require("../database/db");
+const { allQuery } = require("../database/db");
 const TradingAnalytics = require("../analytics/analytics");
 
 const router = express.Router();
-const database = db.getDb();
 
 // Helper function to calculate changes (you might want to compare with previous period)
 const calculateChanges = (currentData, previousData = {}) => {
@@ -26,11 +25,11 @@ const calculateChanges = (currentData, previousData = {}) => {
 };
 
 // GET /api/dashboard/summary
-router.get("/summary", (req, res) => {
+router.get("/summary", async (req, res) => {
   try {
-    const trades = database
-      .prepare("SELECT * FROM trades ORDER BY timestamp DESC")
-      .all();
+    const trades = await allQuery(
+      "SELECT * FROM trades ORDER BY timestamp DESC"
+    );
 
     // Calculate all dashboard metrics
     const equitySeries = TradingAnalytics.equityCurve(trades);
@@ -86,9 +85,9 @@ router.get("/summary", (req, res) => {
 });
 
 // GET /api/dashboard/kpis
-router.get("/kpis", (req, res) => {
+router.get("/kpis", async (req, res) => {
   try {
-    const trades = database.prepare("SELECT * FROM trades").all();
+    const trades = await allQuery("SELECT * FROM trades");
 
     const equitySeries = TradingAnalytics.equityCurve(trades);
     const { maxDrawdown } = TradingAnalytics.drawdowns(equitySeries);
@@ -136,9 +135,9 @@ router.get("/kpis", (req, res) => {
 });
 
 // Other routes remain the same...
-router.get("/hourly-summary", (req, res) => {
+router.get("/hourly-summary", async (req, res) => {
   try {
-    const trades = database.prepare("SELECT * FROM trades").all();
+    const trades = await allQuery("SELECT * FROM trades");
     const hourlySummary = TradingAnalytics.hourlySummary(trades);
     res.json(hourlySummary.slice(0, 6));
   } catch (error) {
@@ -147,12 +146,13 @@ router.get("/hourly-summary", (req, res) => {
   }
 });
 
-router.get("/recent-trades", (req, res) => {
+router.get("/recent-trades", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
-    const trades = database
-      .prepare("SELECT * FROM trades ORDER BY timestamp DESC LIMIT ?")
-      .all(limit);
+    const trades = await allQuery(
+      "SELECT * FROM trades ORDER BY timestamp DESC LIMIT ?",
+      [limit]
+    );
 
     const enhancedTrades = trades.map((trade) => ({
       ...trade,
@@ -166,9 +166,9 @@ router.get("/recent-trades", (req, res) => {
   }
 });
 
-router.get("/daily-summary", (req, res) => {
+router.get("/daily-summary", async (req, res) => {
   try {
-    const trades = database.prepare("SELECT * FROM trades").all();
+    const trades = await allQuery("SELECT * FROM trades");
     let dailySummary = [];
     if (TradingAnalytics.dailySummary) {
       dailySummary = TradingAnalytics.dailySummary(trades).slice(0, 6);

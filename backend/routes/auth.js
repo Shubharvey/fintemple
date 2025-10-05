@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const { v4: uuidv4 } = require("uuid");
-const db = require("../database/db");
+const { getDb, getQuery, runQuery, allQuery } = require("../database/db");
 
 const router = express.Router();
 
@@ -37,14 +37,9 @@ const validatePassword = (password) => {
   return { isValid: true, message: "Password is valid" };
 };
 
-// ✅ FIX: Get database INSIDE the route handlers, not at top level
-const getDatabase = () => {
-  return db.getDb();
-};
-
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
-  const database = getDatabase(); // ✅ Get fresh database connection
+  const database = getDb(); // ✅ Get database connection
 
   console.log("=== REGISTER REQUEST ===");
   console.log("Request body:", req.body);
@@ -81,9 +76,10 @@ router.post("/register", async (req, res) => {
     // Check if user already exists
     console.log("Checking if user exists for email:", email);
 
-    const existingUser = database
-      .prepare("SELECT id FROM users WHERE email = ?")
-      .get(email);
+    const existingUser = await getQuery(
+      "SELECT id FROM users WHERE email = ?",
+      [email.trim().toLowerCase()]
+    );
 
     console.log("Existing user query result:", existingUser);
     console.log("Type of result:", typeof existingUser);
@@ -103,18 +99,17 @@ router.post("/register", async (req, res) => {
 
     // Create user
     const userId = uuidv4();
-    const stmt = database.prepare(`
-      INSERT INTO users (id, email, password_hash, name)
-      VALUES (?, ?, ?, ?)
-    `);
 
-    console.log("Inserting new user with ID:", userId);
-    stmt.run(
-      userId,
-      email.trim().toLowerCase(),
-      password_hash,
-      name ? name.trim() : null
+    await runQuery(
+      `INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)`,
+      [
+        userId,
+        email.trim().toLowerCase(),
+        password_hash,
+        name ? name.trim() : null,
+      ]
     );
+
     console.log("User inserted successfully");
 
     // Return user without password
@@ -134,7 +129,6 @@ router.post("/register", async (req, res) => {
 
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
-  const database = getDatabase(); // ✅ Get fresh database connection
   const { email, password } = req.body;
   const ip = req.ip || req.connection.remoteAddress;
 
@@ -168,9 +162,9 @@ router.post("/login", async (req, res) => {
 
     // Find user (normalize email for case-insensitive search)
     const normalizedEmail = email.trim().toLowerCase();
-    const user = database
-      .prepare("SELECT * FROM users WHERE email = ?")
-      .get(normalizedEmail);
+    const user = await getQuery("SELECT * FROM users WHERE email = ?", [
+      normalizedEmail,
+    ]);
 
     if (!user) {
       // Increment on failed attempt
@@ -219,11 +213,9 @@ router.post("/logout", (req, res) => {
 });
 
 // TEMPORARY: Get all users (for debugging)
-router.get("/debug-users", (req, res) => {
-  const database = getDatabase(); // ✅ Get fresh database connection
-
+router.get("/debug-users", async (req, res) => {
   try {
-    const users = database.prepare("SELECT id, email, name FROM users").all();
+    const users = await allQuery("SELECT id, email, name FROM users");
     console.log("Current users in database:", users);
     res.json({ users });
   } catch (error) {
@@ -233,11 +225,11 @@ router.get("/debug-users", (req, res) => {
 });
 
 // TEMPORARY: Reset users table
-router.get("/reset-users", (req, res) => {
-  const database = getDatabase(); // ✅ Get fresh database connection
+router.get("/reset-users", async (req, res) => {
+  const database = getDb();
 
   try {
-    database.exec("DELETE FROM users");
+    await runQuery("DELETE FROM users");
     console.log("Users table cleared");
     res.json({ message: "All users cleared successfully" });
   } catch (error) {

@@ -1,12 +1,11 @@
 const express = require("express");
-const db = require("../database/db");
+const { allQuery } = require("../database/db");
 const TradingAnalytics = require("../analytics/analytics");
 
 const router = express.Router();
-const database = db.getDb();
 
 // GET /api/reports/summary
-router.get("/summary", (req, res) => {
+router.get("/summary", async (req, res) => {
   try {
     // Get all trades for the date range
     let query = `SELECT * FROM trades WHERE 1=1`;
@@ -21,7 +20,7 @@ router.get("/summary", (req, res) => {
       params.push(req.query.to);
     }
 
-    const trades = database.prepare(query).all(...params);
+    const trades = await allQuery(query, params);
 
     // Compute analytics with INR as default currency
     const equitySeries = TradingAnalytics.equityCurve(trades);
@@ -58,6 +57,7 @@ router.get("/summary", (req, res) => {
       currency: "INR", // Add currency info
     });
   } catch (error) {
+    console.error("Error in reports summary:", error);
     res.status(500).json({ error: error.message });
   }
 });
