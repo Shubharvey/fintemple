@@ -6,12 +6,6 @@ const http = require("http");
 const socketIo = require("socket.io");
 const db = require("./database/db");
 
-// ✅ Import ALL routes at the top
-const authRoutes = require("./routes/auth");
-const dashboardRoutes = require("./routes/dashboard");
-const tradeRoutes = require("./routes/trades");
-const reportRoutes = require("./routes/reports");
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -26,20 +20,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ✅ COMPREHENSIVE Debug middleware - LOG EVERYTHING
+// ✅ ENHANCED Debug middleware - LOG ALL REQUESTS
 app.use((req, res, next) => {
-  console.log(`🔍 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
   console.log(`   Origin: ${req.headers.origin}`);
-  console.log(`   User-Agent: ${req.headers["user-agent"]}`);
-  console.log(`   Headers:`, req.headers);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`   Body: ${JSON.stringify(req.body)}`);
-  }
+  console.log(
+    `   User-Agent: ${req.headers["user-agent"]?.substring(0, 50)}...`
+  );
   next();
 });
 
 // Initialize database FIRST
 db.init();
+
+// ✅ Import routes AFTER database initialization (FIXED)
+const authRoutes = require("./routes/auth");
+const dashboardRoutes = require("./routes/dashboard");
+const tradeRoutes = require("./routes/trades");
+const reportRoutes = require("./routes/reports");
 
 // Socket.IO for real-time updates
 const server = http.createServer(app);
@@ -49,13 +47,13 @@ const io = socketIo(server, {
 
 app.set("io", io);
 
-// ✅ Now use ALL routes (they're already imported above)
+// ✅ Now use ALL routes (they're imported above after db.init)
 app.use("/api/trades", tradeRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
-// ✅ ENHANCED Health check with full diagnostics
+// Enhanced Health check
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
@@ -63,12 +61,10 @@ app.get("/api/health", (req, res) => {
     timestamp: new Date().toISOString(),
     cors: "ALL_ORIGINS_ALLOWED",
     message: "Backend is running with open CORS policy",
-    backend_url: "https://fintemple-backend.onrender.com",
-    frontend_url: "https://fintemple.onrender.com",
   });
 });
 
-// ✅ DIAGNOSTIC ENDPOINT - Test everything
+// ✅ WORKING Diagnostic endpoint (no database dependency)
 app.get("/api/diagnostic", (req, res) => {
   res.json({
     status: "Diagnostic endpoint working",
@@ -85,13 +81,13 @@ app.get("/api/diagnostic", (req, res) => {
   });
 });
 
-// ✅ TEST REGISTRATION ENDPOINT - No auth required
+// ✅ SIMPLE Test registration endpoint (no database operations)
 app.post("/api/test-registration", async (req, res) => {
   try {
     const { email, password, name } = req.body;
     console.log("🎯 TEST REGISTRATION ATTEMPT:", { email, name });
 
-    // Basic validation
+    // Basic validation only - no database operations
     if (!email || !password) {
       return res.status(400).json({
         error: "Email and password required",
