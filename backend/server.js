@@ -14,36 +14,11 @@ const reportRoutes = require("./routes/reports");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const isProduction = process.env.NODE_ENV === "production";
 
-// ✅ RENDER-SPECIFIC CORS Configuration
+// ✅ BULLETPROOF CORS - ALLOW EVERYTHING
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or server-to-server calls)
-    if (!origin) return callback(null, true);
-
-    // List of allowed origins
-    const allowedOrigins = [
-      process.env.FRONTEND_URL, // Your production frontend URL from .env
-      "https://fintemple.onrender.com", // Your actual Render frontend
-      "http://localhost:5173", // Vite dev server
-      "http://127.0.0.1:5173", // Vite alternative
-      "http://localhost:3000", // Create React App
-      "http://127.0.0.1:3000", // CRA alternative
-    ].filter(Boolean); // Remove any undefined values
-
-    // Check if the origin is in allowed list OR allow all Render subdomains
-    if (
-      allowedOrigins.indexOf(origin) !== -1 ||
-      origin.endsWith(".onrender.com")
-    ) {
-      callback(null, true);
-    } else {
-      console.warn(`🚫 CORS blocked request from origin: ${origin}`);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  origin: true, // Allow ALL origins
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -51,11 +26,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ✅ Debug middleware (only in development)
+// ✅ ENHANCED Debug middleware - LOG ALL REQUESTS
 app.use((req, res, next) => {
-  if (!isProduction) {
-    console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
-  }
+  console.log(`🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`   Origin: ${req.headers.origin}`);
+  console.log(
+    `   User-Agent: ${req.headers["user-agent"]?.substring(0, 50)}...`
+  );
   next();
 });
 
@@ -76,24 +53,33 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 
-// Health check
+// Enhanced Health check
 app.get("/api/health", (req, res) => {
   res.json({
     status: "OK",
     environment: process.env.NODE_ENV || "development",
     timestamp: new Date().toISOString(),
+    cors: "ALL_ORIGINS_ALLOWED",
+    message: "Backend is running with open CORS policy",
   });
 });
 
-// Test route to verify auth routes are working
+// Enhanced test route
 app.get("/api/test-auth", (req, res) => {
-  res.json({ message: "Auth routes are mounted correctly!" });
+  res.json({
+    message: "Auth routes are working!",
+    cors: "✅ All origins allowed",
+    timestamp: new Date().toISOString(),
+  });
 });
+
+// Test CORS specifically
+app.options("/api/auth/register", cors(corsOptions)); // Explicit preflight
+app.options("/api/auth/login", cors(corsOptions)); // Explicit preflight
 
 // Socket connection handling
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
-
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });
@@ -101,9 +87,7 @@ io.on("connection", (socket) => {
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`🔧 CORS configured for Render deployment`);
-  console.log(
-    `📡 Allowed origins: fintemple.onrender.com, all onrender.com subdomains + localhost`
-  );
+  console.log(`🔓 CORS: ALL ORIGINS ALLOWED`);
+  console.log(`📡 Health: http://localhost:${PORT}/api/health`);
+  console.log(`🔗 Register: http://localhost:${PORT}/api/auth/register`);
 });
