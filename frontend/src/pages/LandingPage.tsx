@@ -32,12 +32,12 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <Target className="w-4 h-4 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Task Force
-              </h1>
+              <img
+                src="/onlylogo.png"
+                alt="FinTemple"
+                className="h-14 w-auto object-contain"
+                style={{ maxWidth: "400px" }}
+              />
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -196,7 +196,7 @@ const LandingPage: React.FC = () => {
             Ready to Elevate Your Trading?
           </h2>
           <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
-            Join the elite community of traders who trust Task Force for their
+            Join the elite community of traders who trust FinTemple for their
             most important financial decisions.
           </p>
           <Link
@@ -213,13 +213,15 @@ const LandingPage: React.FC = () => {
       <footer className="border-t border-white/10 py-12 px-4 sm:px-6 lg:px-8 relative z-30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-              <Target className="w-3 h-3 text-white" />
-            </div>
-            <h3 className="text-lg font-bold text-white">Task Force</h3>
+            <img
+              src="/onlylogo.png"
+              alt="FinTemple"
+              className="h-8 w-auto object-contain"
+              style={{ maxWidth: "160px" }}
+            />
           </div>
           <p className="text-slate-400">
-            © 2024 Task Force. Professional trading platform for serious
+            © 2024 FinTemple. Professional trading platform for serious
             investors.
           </p>
         </div>

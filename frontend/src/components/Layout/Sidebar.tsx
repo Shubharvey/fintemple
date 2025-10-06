@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
         {!collapsed && (
           <h1 className="text-2xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-opacity duration-500 ease-in-out">
-            Task Force
+            FinTemple
           </h1>
         )}
         <button
