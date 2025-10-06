@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { tradesAPI } from "../../services/api";
 import { Trade } from "../../types";
+import { ChevronDown } from "lucide-react";
 
 interface TradeFormProps {
   onTradeAdded: () => void;
@@ -18,8 +19,8 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
     fees: 0,
     strategy: "",
     tags: [],
-    tradeType: "intraday", // New field
-    timestamp: new Date().toISOString(), // Default to current time
+    tradeType: "intraday",
+    timestamp: new Date().toISOString(),
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,6 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
     setError(null);
 
     try {
-      // Validate required fields
       if (
         !formData.symbol ||
         formData.entry === undefined ||
@@ -50,24 +50,20 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
 
       const tradeData = {
         ...formData,
-        // Use the selected timestamp instead of always current time
         timestamp: formData.timestamp,
-        // For demo, set exit timestamp if exit price is provided
         exitTimestamp: formData.exit ? new Date().toISOString() : undefined,
-        // Set volume as lot size for calculation
         volume: formData.lot,
       };
 
-      console.log("Sending trade data:", tradeData); // Debug log
-      console.log("Calculated P&L:", calculatePnL()); // Debug P&L
+      console.log("Sending trade data:", tradeData);
+      console.log("Calculated P&L:", calculatePnL());
 
       const response = await tradesAPI.create(tradeData);
 
-      console.log("Trade created successfully:", response.data); // Debug log
+      console.log("Trade created successfully:", response.data);
 
       onTradeAdded();
 
-      // Reset form
       setFormData({
         symbol: "",
         instrumentType: "forex",
@@ -109,56 +105,51 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
         [name]: value.split(",").map((tag) => tag.trim()),
       }));
     } else if (type === "datetime-local") {
-      // Convert datetime-local to ISO string
+      // Fix timezone issue - use the local time directly without conversion
       setFormData((prev) => ({
         ...prev,
-        [name]: value
-          ? new Date(value).toISOString()
-          : new Date().toISOString(),
+        [name]: value || new Date().toISOString().slice(0, 16),
       }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // Calculate potential P&L - FIXED VERSION
   const calculatePnL = () => {
     if (!formData.entry || !formData.lot) return 0;
 
     const exitPrice = formData.exit || formData.entry;
     let pnl;
 
-    // Account for trade direction
     if (formData.side === "buy") {
-      // For BUY trades: Profit when exit > entry
       pnl = (exitPrice - formData.entry) * formData.lot;
     } else {
-      // For SELL trades: Profit when exit < entry
       pnl = (formData.entry - exitPrice) * formData.lot;
     }
 
-    // Subtract fees
     return pnl - (formData.fees || 0);
   };
 
   const potentialPnL = calculatePnL();
 
-  // Get P&L color based on value
   const getPnLColor = () => {
     if (potentialPnL > 0) return "text-green-400";
     if (potentialPnL < 0) return "text-red-400";
     return "text-slate-300";
   };
 
-  // Format current date for datetime-local input
+  // Get current local datetime in correct format for datetime-local input
   const getCurrentDateTimeLocal = () => {
     const now = new Date();
-    return now.toISOString().slice(0, 16);
+    // Adjust for timezone offset to get local time
+    const timezoneOffset = now.getTimezoneOffset() * 60000;
+    const localTime = new Date(now.getTime() - timezoneOffset);
+    return localTime.toISOString().slice(0, 16);
   };
 
   return (
-    <div className="glass-card p-6 max-w-2xl mx-auto">
-      <h2 className="text-2xl font-bold text-white mb-6">New Trade</h2>
+    <div className="glass-card p-4 md:p-6 max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold text-white mb-4 md:mb-6">New Trade</h2>
 
       {error && (
         <div className="bg-red-500/20 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4">
@@ -166,10 +157,10 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-4">
           {/* Symbol */}
-          <div>
+          <div className="lg:col-span-3">
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Symbol *
             </label>
@@ -179,13 +170,13 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               value={formData.symbol}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               placeholder="e.g., EURUSD, AAPL, BTCUSD"
             />
           </div>
 
           {/* Instrument Type */}
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Instrument Type *
             </label>
@@ -194,7 +185,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               value={formData.instrumentType}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer pr-10"
             >
               <option value="forex">Forex</option>
               <option value="commodity">Commodity</option>
@@ -205,10 +196,11 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               <option value="index-future">Index Future</option>
               <option value="crypto">Crypto</option>
             </select>
+            <ChevronDown className="absolute right-3 top-9 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
 
-          {/* Trade Type - NEW FIELD */}
-          <div>
+          {/* Trade Type */}
+          <div className="relative">
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Trade Type *
             </label>
@@ -217,7 +209,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               value={formData.tradeType}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer pr-10"
             >
               <option value="intraday">Intraday</option>
               <option value="scalp">Scalp</option>
@@ -226,10 +218,11 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               <option value="long-term">Long Term</option>
               <option value="delivery">Delivery</option>
             </select>
+            <ChevronDown className="absolute right-3 top-9 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
 
           {/* Side */}
-          <div>
+          <div className="relative">
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Side *
             </label>
@@ -238,14 +231,15 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               value={formData.side}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer pr-10"
             >
               <option value="buy">Buy</option>
               <option value="sell">Sell</option>
             </select>
+            <ChevronDown className="absolute right-3 top-9 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
 
-          {/* Date & Time - NEW FIELD */}
+          {/* Date & Time - FIXED */}
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Date & Time *
@@ -253,14 +247,10 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
             <input
               type="datetime-local"
               name="timestamp"
-              value={
-                formData.timestamp
-                  ? new Date(formData.timestamp).toISOString().slice(0, 16)
-                  : getCurrentDateTimeLocal()
-              }
+              value={formData.timestamp || getCurrentDateTimeLocal()}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
 
@@ -277,7 +267,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               value={formData.lot || ""}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               placeholder="e.g., 100, 1000"
             />
           </div>
@@ -295,7 +285,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               value={formData.entry || ""}
               onChange={handleChange}
               required
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               placeholder="Enter entry price"
             />
           </div>
@@ -312,7 +302,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               name="exit"
               value={formData.exit || ""}
               onChange={handleChange}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               placeholder="Leave empty for open trade"
             />
           </div>
@@ -329,7 +319,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               name="sl"
               value={formData.sl || ""}
               onChange={handleChange}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
 
@@ -345,7 +335,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               name="tp"
               value={formData.tp || ""}
               onChange={handleChange}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
 
@@ -361,12 +351,12 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               name="fees"
               value={formData.fees || ""}
               onChange={handleChange}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             />
           </div>
 
           {/* Strategy */}
-          <div>
+          <div className="lg:col-span-3">
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Strategy
             </label>
@@ -375,7 +365,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
               name="strategy"
               value={formData.strategy}
               onChange={handleChange}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
               placeholder="e.g., Breakout, Scalping, Swing"
             />
           </div>
@@ -383,11 +373,11 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
 
         {/* P&L Preview */}
         {formData.entry && formData.lot && (
-          <div className="glass border border-white/10 rounded-lg p-4">
+          <div className="bg-slate-800 border border-white/10 rounded-lg p-4">
             <h3 className="text-lg font-semibold text-white mb-2">
               P&L Preview
             </h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
               <div>
                 <span className="text-slate-400">Entry Value:</span>
                 <div className="text-white font-medium">
@@ -453,7 +443,7 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
             name="tags"
             value={formData.tags?.join(", ") || ""}
             onChange={handleChange}
-            className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             placeholder="Comma separated, e.g., breakout, winning, news"
           />
         </div>
@@ -468,17 +458,17 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
             value={formData.notes || ""}
             onChange={handleChange}
             rows={3}
-            className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+            className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
             placeholder="Any additional notes about the trade..."
           />
         </div>
 
         {/* Buttons */}
-        <div className="flex space-x-4 pt-4">
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 glass border border-white/10 text-white py-3 rounded-lg hover:bg-white/5 transition-colors"
+            className="flex-1 bg-slate-800 border border-white/10 text-white py-3 rounded-lg hover:bg-slate-700 transition-colors"
           >
             Cancel
           </button>
@@ -491,6 +481,32 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
           </button>
         </div>
       </form>
+
+      {/* Custom CSS for dropdown styling */}
+      <style>{`
+        select {
+          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+          background-position: right 0.5rem center;
+          background-repeat: no-repeat;
+          background-size: 1.5em 1.5em;
+          padding-right: 2.5rem;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        
+        select option {
+          background-color: #1e293b;
+          color: white;
+          padding: 8px;
+        }
+        
+        select option:hover,
+        select option:focus,
+        select option:checked {
+          background-color: #3b82f6 !important;
+          color: white !important;
+        }
+      `}</style>
     </div>
   );
 };

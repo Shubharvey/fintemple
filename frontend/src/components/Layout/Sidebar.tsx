@@ -65,17 +65,17 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         </button>
       </div>
 
-      {/* User Info */}
+      {/* User Info - FIXED */}
       {!collapsed && user && (
-        <div className="p-4 border-b border-white/10 transition-all duration-500 ease-in-out overflow-hidden">
+        <div className="p-4 border-b border-white/10 transition-all duration-500 ease-in-out">
           <div className="flex items-center space-x-3 animate-in slide-in-from-left-8 duration-500">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
               <span className="text-white text-sm font-semibold">
                 {user.name?.charAt(0).toUpperCase() ||
                   user.email?.charAt(0).toUpperCase()}
               </span>
             </div>
-            <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex-1 min-w-0 space-y-1 overflow-hidden">
               <p className="text-white text-sm font-medium truncate transition-all duration-300">
                 {user.name || user.email}
               </p>
@@ -88,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       )}
 
       {/* Navigation */}
-      <div className="flex-1 p-4 space-y-8 transition-all duration-500 ease-in-out">
+      <div className="flex-1 p-4 space-y-8 transition-all duration-500 ease-in-overflow-auto">
         <div className="space-y-2">
           {!collapsed && (
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 pl-3 transition-all duration-500 ease-in-out animate-in slide-in-from-left-6">

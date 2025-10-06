@@ -106,15 +106,15 @@ const TopBar: React.FC<TopBarProps> = ({
           </button>
 
           {showThemeMenu && (
-            <div className="absolute right-0 top-12 mt-2 w-64 glass-card border border-white/10 rounded-lg shadow-lg z-50">
-              <div className="p-4 border-b border-white/10">
+            <div className="absolute right-0 top-12 mt-2 w-64 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md">
+              <div className="p-4 border-b border-white/10 bg-slate-800/95 rounded-t-lg">
                 <h3 className="text-white font-semibold">Theme Settings</h3>
                 <p className="text-slate-400 text-sm">
                   Choose your preferred theme
                 </p>
               </div>
 
-              <div className="p-2">
+              <div className="p-2 bg-slate-800/95 rounded-b-lg">
                 {themes.map((theme) => {
                   const ThemeIcon = theme.icon;
                   return (
