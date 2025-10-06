@@ -23,4 +23,6 @@ export default defineConfig({
       "https://fintemple-backend.onrender.com"
     ),
   },
+  // ✅ ADD THIS FOR SPA ROUTING FIX
+  base: "./",
 });
