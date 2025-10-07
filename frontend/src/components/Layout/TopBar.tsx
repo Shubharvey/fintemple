@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Settings, Sun, Moon, Palette } from "lucide-react";
+import { Settings, Sun, Moon, Palette, Menu, User, LogOut } from "lucide-react";
+import { useAuth } from "../../hooks/useAuth";
 
 interface TopBarProps {
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  isMobile?: boolean;
 }
 
 type Theme = "dark" | "light";
@@ -12,11 +14,14 @@ type Theme = "dark" | "light";
 const TopBar: React.FC<TopBarProps> = ({
   sidebarCollapsed,
   onToggleSidebar,
+  isMobile = false,
 }) => {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState("");
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<Theme>("dark");
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const updateTime = () => {
@@ -37,7 +42,6 @@ const TopBar: React.FC<TopBarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Apply theme to document
   useEffect(() => {
     if (currentTheme === "light") {
       document.documentElement.classList.add("light-theme");
@@ -56,6 +60,10 @@ const TopBar: React.FC<TopBarProps> = ({
         return "Reports";
       case "/import":
         return "Import Trades";
+      case "/calendar":
+        return "Calendar";
+      case "/settings":
+        return "Settings";
       default:
         return "Dashboard";
     }
@@ -81,92 +89,188 @@ const TopBar: React.FC<TopBarProps> = ({
     setShowThemeMenu(false);
   };
 
+  const handleLogout = () => {
+    logout();
+    setShowUserMenu(false);
+  };
+
   return (
-    <div className="glass-nav h-16 flex items-center justify-between px-6">
+    <div className="glass-nav h-16 flex items-center justify-between px-4 md:px-6 relative">
       <div className="flex items-center space-x-4">
-        <h1 className="text-xl font-semibold text-white">{getPageTitle()}</h1>
+        {/* Mobile Menu Toggle */}
+        {isMobile && (
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <Menu className="w-5 h-5 text-slate-300" />
+          </button>
+        )}
+
+        <h1 className="text-lg md:text-xl font-semibold text-white">
+          {getPageTitle()}
+        </h1>
       </div>
 
-      <div className="flex items-center space-x-4">
-        {/* Live Indian Time */}
-        <div className="flex items-center space-x-2 bg-white/5 rounded-lg px-3 py-2">
-          <Palette className="w-4 h-4 text-slate-300" />
-          <span className="text-sm font-medium text-slate-300">
+      <div className="flex items-center space-x-2 md:space-x-4">
+        {/* Live Indian Time - Now visible on both desktop and mobile */}
+        <div className="flex items-center space-x-1 md:space-x-2 bg-white/5 rounded-lg px-2 py-1 md:px-3 md:py-2">
+          <Palette className="w-3 h-3 md:w-4 md:h-4 text-slate-300" />
+          <span className="text-xs md:text-sm font-medium text-slate-300">
             {currentTime}
           </span>
         </div>
 
-        {/* Theme Settings Button with Dropdown */}
+        {/* User Profile Dropdown */}
         <div className="relative">
           <button
-            onClick={() => setShowThemeMenu(!showThemeMenu)}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center space-x-2"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center space-x-2 p-2 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <Settings className="w-5 h-5 text-slate-300" />
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name || "User"}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-semibold">
+                  {user?.name?.charAt(0).toUpperCase() ||
+                    user?.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
+            {!isMobile && (
+              <div className="text-left">
+                <div className="text-sm font-medium text-white">
+                  {user?.name || "User"}
+                </div>
+                <div className="text-xs text-slate-400">
+                  {user?.email || "user@example.com"}
+                </div>
+              </div>
+            )}
           </button>
 
-          {showThemeMenu && (
+          {showUserMenu && (
             <div className="absolute right-0 top-12 mt-2 w-64 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md">
               <div className="p-4 border-b border-white/10 bg-slate-800/95 rounded-t-lg">
-                <h3 className="text-white font-semibold">Theme Settings</h3>
-                <p className="text-slate-400 text-sm">
-                  Choose your preferred theme
-                </p>
+                <div className="flex items-center space-x-3">
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name || "User"}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <span className="text-white font-semibold">
+                        {user?.name?.charAt(0).toUpperCase() ||
+                          user?.email?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-white font-semibold">
+                      {user?.name || "User"}
+                    </div>
+                    <div className="text-slate-400 text-sm">
+                      {user?.email || "user@example.com"}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="p-2 bg-slate-800/95 rounded-b-lg">
-                {themes.map((theme) => {
-                  const ThemeIcon = theme.icon;
-                  return (
-                    <button
-                      key={theme.id}
-                      onClick={() => handleThemeChange(theme.id)}
-                      className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-all ${
-                        currentTheme === theme.id
-                          ? "bg-blue-500/20 border border-blue-500/30"
-                          : "hover:bg-white/5"
-                      }`}
-                    >
-                      <div
-                        className={`p-2 rounded-lg ${
-                          currentTheme === theme.id
-                            ? "bg-blue-500 text-white"
-                            : "bg-white/10 text-slate-300"
-                        }`}
-                      >
-                        <ThemeIcon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div
-                          className={`font-medium ${
-                            currentTheme === theme.id
-                              ? "text-blue-400"
-                              : "text-white"
-                          }`}
-                        >
-                          {theme.name}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          {theme.description}
-                        </div>
-                      </div>
-                      {currentTheme === theme.id && (
-                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      )}
-                    </button>
-                  );
-                })}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-red-500/20 transition-colors text-red-400 hover:text-white"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
               </div>
             </div>
           )}
         </div>
+
+        {/* Theme Settings Button - Hidden on mobile */}
+        {!isMobile && (
+          <div className="relative">
+            <button
+              onClick={() => setShowThemeMenu(!showThemeMenu)}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors flex items-center space-x-2"
+            >
+              <Settings className="w-5 h-5 text-slate-300" />
+            </button>
+
+            {showThemeMenu && (
+              <div className="absolute right-0 top-12 mt-2 w-64 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md">
+                <div className="p-4 border-b border-white/10 bg-slate-800/95 rounded-t-lg">
+                  <h3 className="text-white font-semibold">Theme Settings</h3>
+                  <p className="text-slate-400 text-sm">
+                    Choose your preferred theme
+                  </p>
+                </div>
+
+                <div className="p-2 bg-slate-800/95 rounded-b-lg">
+                  {themes.map((theme) => {
+                    const ThemeIcon = theme.icon;
+                    return (
+                      <button
+                        key={theme.id}
+                        onClick={() => handleThemeChange(theme.id)}
+                        className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-all ${
+                          currentTheme === theme.id
+                            ? "bg-blue-500/20 border border-blue-500/30"
+                            : "hover:bg-white/5"
+                        }`}
+                      >
+                        <div
+                          className={`p-2 rounded-lg ${
+                            currentTheme === theme.id
+                              ? "bg-blue-500 text-white"
+                              : "bg-white/10 text-slate-300"
+                          }`}
+                        >
+                          <ThemeIcon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div
+                            className={`font-medium ${
+                              currentTheme === theme.id
+                                ? "text-blue-400"
+                                : "text-white"
+                            }`}
+                          >
+                            {theme.name}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {theme.description}
+                          </div>
+                        </div>
+                        {currentTheme === theme.id && (
+                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Overlay to close theme menu when clicking outside */}
-      {showThemeMenu && (
+      {/* Overlay to close menus when clicking outside */}
+      {(showThemeMenu || showUserMenu) && (
         <div
           className="fixed inset-0 z-40"
-          onClick={() => setShowThemeMenu(false)}
+          onClick={() => {
+            setShowThemeMenu(false);
+            setShowUserMenu(false);
+          }}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -14,6 +14,9 @@ import {
 } from "recharts";
 import { tradesAPI } from "../services/api";
 import { Trade, DashboardSummary } from "../types";
+import { useLoading } from "../contexts/LoadingContext";
+import LoadingSpinner from "../components/Loading/LoadingSpinner";
+import { ChevronDown, X } from "lucide-react";
 
 const Reports: React.FC = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -22,23 +25,75 @@ const Reports: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<string>("today");
   const [timeFrame, setTimeFrame] = useState<string>("day");
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [showTimeFrameDropdown, setShowTimeFrameDropdown] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Refs for dropdown containers
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+  const timeFrameDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchReportsData();
     fetchTradesData();
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    // Add click outside listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [dateRange]);
+
+  // Function to handle clicks outside the dropdowns
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      dateDropdownRef.current &&
+      !dateDropdownRef.current.contains(event.target as Node)
+    ) {
+      setShowDateDropdown(false);
+    }
+    if (
+      timeFrameDropdownRef.current &&
+      !timeFrameDropdownRef.current.contains(event.target as Node)
+    ) {
+      setShowTimeFrameDropdown(false);
+    }
+  };
+
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < 768);
+  };
 
   const fetchReportsData = async () => {
     try {
       setLoading(true);
-      const response = await tradesAPI.getReportsSummary({
-        from: getDateRangeFilter(dateRange),
-        to: new Date().toISOString(),
-      });
-      setSummary(response.data);
+      setError(null);
+
+      // Try to get reports summary, but handle the case where the endpoint might not exist
+      try {
+        const response = await tradesAPI.getReportsSummary({
+          from: getDateRangeFilter(dateRange),
+          to: new Date().toISOString(),
+        });
+        setSummary(response.data);
+      } catch (apiError) {
+        console.warn(
+          "Reports API endpoint not available, using calculated data:",
+          apiError
+        );
+        // If the API endpoint doesn't exist, we'll just use the calculated data from trades
+        setSummary(null);
+      }
     } catch (err) {
-      setError("Failed to load reports data");
-      console.error("Error fetching reports:", err);
+      // Only show error if it's not related to the API endpoint
+      if (!(err instanceof Error) || !err.message.includes("404")) {
+        setError("Failed to load reports data");
+        console.error("Error fetching reports:", err);
+      }
     } finally {
       setLoading(false);
     }
@@ -50,6 +105,7 @@ const Reports: React.FC = () => {
       setTrades(response.data);
     } catch (err) {
       console.error("Error fetching trades:", err);
+      setError("Failed to load trades data");
     }
   };
 
@@ -137,6 +193,22 @@ const Reports: React.FC = () => {
     const tradingDays = calculateTradingDays(trades);
     const avgDailyVolume = tradingDays > 0 ? totalTrades / tradingDays : 0;
 
+    // Calculate profit factor
+    const totalWins = winningTrades.reduce(
+      (sum, trade) => sum + trade.calculatedPnL,
+      0
+    );
+    const totalLosses = Math.abs(
+      losingTrades.reduce((sum, trade) => sum + trade.calculatedPnL, 0)
+    );
+    const profitFactor = totalLosses > 0 ? totalWins / totalLosses : 0;
+
+    // Calculate average win and loss
+    const avgWin =
+      winningTrades.length > 0 ? totalWins / winningTrades.length : 0;
+    const avgLoss =
+      losingTrades.length > 0 ? totalLosses / losingTrades.length : 0;
+
     return {
       totalTrades,
       closedTrades: closedTrades.length,
@@ -154,6 +226,9 @@ const Reports: React.FC = () => {
       streaks,
       tradingDays,
       avgDailyVolume,
+      profitFactor,
+      avgWin,
+      avgLoss,
     };
   };
 
@@ -277,32 +352,43 @@ const Reports: React.FC = () => {
     },
   ].filter((item) => item.value > 0);
 
+  const dateOptions = [
+    { value: "today", label: "Today" },
+    { value: "week", label: "This Week" },
+    { value: "month", label: "This Month" },
+    { value: "all", label: "All Time" },
+  ];
+
+  const timeFrameOptions = [
+    { value: "day", label: "Day" },
+    { value: "week", label: "Week" },
+    { value: "month", label: "Month" },
+  ];
+
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value);
+  };
+
   if (loading) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-6">Reports</h1>
+      <div className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold text-white mb-6">
+          Reports
+        </h1>
         <div className="glass-card p-6">
-          <div className="animate-pulse space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-12 bg-white/10 rounded"></div>
-            ))}
-          </div>
+          <LoadingSpinner size="lg" text="Loading reports data..." />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-white">Reports</h1>
-        <div className="text-slate-400">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+        <h1 className="text-xl md:text-2xl font-bold text-white">Reports</h1>
+        <div className="text-slate-400 text-sm md:text-base">
           Report for{" "}
-          {dateRange === "today"
-            ? "Today"
-            : dateRange === "week"
-            ? "This Week"
-            : "This Month"}{" "}
+          {dateOptions.find((opt) => opt.value === dateRange)?.label || "Today"}{" "}
           ({new Date().toLocaleDateString()})
         </div>
       </div>
@@ -314,47 +400,76 @@ const Reports: React.FC = () => {
       )}
 
       {/* Summary Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Left Column - Chart */}
-        <div className="glass-card p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="glass-card p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
             <div>
               <h2 className="text-lg font-semibold text-white">Net P&L</h2>
               <p className="text-slate-400 text-sm">vs Win Rate %</p>
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setDateRange("today")}
+                onClick={() => handleDateRangeChange("today")}
                 className="text-slate-400 hover:text-white text-sm"
               >
                 Clear
               </button>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="glass border border-white/10 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="today">Today</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-                <option value="all">All Time</option>
-              </select>
+              <div className="relative" ref={dateDropdownRef}>
+                <button
+                  onClick={() => setShowDateDropdown(!showDateDropdown)}
+                  className="glass border border-white/10 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:border-blue-500 flex items-center space-x-2 hover:bg-white/5 transition-colors"
+                >
+                  <span>
+                    {dateOptions.find((opt) => opt.value === dateRange)
+                      ?.label || "Today"}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      showDateDropdown ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {showDateDropdown && (
+                  <div className="absolute top-full right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md">
+                    <div className="p-2">
+                      {dateOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            handleDateRangeChange(option.value);
+                            setShowDateDropdown(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm ${
+                            dateRange === option.value
+                              ? "bg-blue-500/20 text-blue-400"
+                              : "text-slate-300 hover:bg-white/5"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Time Frame Selector */}
-          <div className="flex space-x-2 mb-6">
-            {["Day", "Week", "Month"].map((period) => (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {timeFrameOptions.map((period) => (
               <button
-                key={period}
-                onClick={() => setTimeFrame(period.toLowerCase())}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  timeFrame === period.toLowerCase()
+                key={period.value}
+                onClick={() => setTimeFrame(period.value)}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  timeFrame === period.value
                     ? "bg-blue-500 text-white"
-                    : "glass border border-white/10 text-slate-400 hover:text-white"
+                    : "glass border border-white/10 text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
-                {period}
+                {period.label}
               </button>
             ))}
           </div>
@@ -407,14 +522,14 @@ const Reports: React.FC = () => {
         </div>
 
         {/* Right Column - Overall Performance */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <h2 className="text-lg font-semibold text-white mb-6">
             Overall Performance
           </h2>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Total P&L</span>
+              <span className="text-slate-400 text-sm">Total P&L</span>
               <span
                 className={`font-semibold ${
                   stats.netProfit >= 0 ? "text-green-400" : "text-red-400"
@@ -425,14 +540,16 @@ const Reports: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Total Number of Trades</span>
+              <span className="text-slate-400 text-sm">
+                Total Number of Trades
+              </span>
               <span className="text-white font-semibold">
                 {stats.totalTrades}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Average Trade P&L</span>
+              <span className="text-slate-400 text-sm">Average Trade P&L</span>
               <span
                 className={`font-semibold ${
                   stats.avgTradePnL >= 0 ? "text-green-400" : "text-red-400"
@@ -443,23 +560,19 @@ const Reports: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Trade Expectancy</span>
+              <span className="text-slate-400 text-sm">Trade Expectancy</span>
               <span className="text-white font-semibold">
-                {summary?.avgWin && summary?.avgLoss
-                  ? formatCurrency(
-                      summary.avgWin * (stats.winRate / 100) +
-                        summary.avgLoss * ((100 - stats.winRate) / 100)
-                    )
-                  : formatCurrency(stats.avgTradePnL)}
+                {formatCurrency(
+                  stats.avgWin * (stats.winRate / 100) +
+                    stats.avgLoss * ((100 - stats.winRate) / 100)
+                )}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-slate-400">Profit Factor</span>
+              <span className="text-slate-400 text-sm">Profit Factor</span>
               <span className="text-white font-semibold">
-                {summary?.profitFactor
-                  ? summary.profitFactor.toFixed(2)
-                  : "N/A"}
+                {stats.profitFactor ? stats.profitFactor.toFixed(2) : "N/A"}
               </span>
             </div>
           </div>
@@ -467,30 +580,34 @@ const Reports: React.FC = () => {
       </div>
 
       {/* Bottom Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Trade Outcomes */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <h2 className="text-lg font-semibold text-white mb-6">
             Trade Outcomes
           </h2>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Number of Winning Trades</span>
+              <span className="text-slate-400 text-sm">
+                Number of Winning Trades
+              </span>
               <span className="text-green-400 font-semibold">
                 {stats.winningTrades}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Number of Losing Trades</span>
+              <span className="text-slate-400 text-sm">
+                Number of Losing Trades
+              </span>
               <span className="text-red-400 font-semibold">
                 {stats.losingTrades}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">
+              <span className="text-slate-400 text-sm">
                 Number of Break Even Trades
               </span>
               <span className="text-slate-400 font-semibold">
@@ -499,7 +616,7 @@ const Reports: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Largest Profit</span>
+              <span className="text-slate-400 text-sm">Largest Profit</span>
               <span className="text-green-400 font-semibold">
                 {stats.largestProfit > 0
                   ? formatCurrency(stats.largestProfit)
@@ -508,7 +625,7 @@ const Reports: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Largest Loss</span>
+              <span className="text-slate-400 text-sm">Largest Loss</span>
               <span className="text-red-400 font-semibold">
                 {stats.largestLoss < 0
                   ? formatCurrency(stats.largestLoss)
@@ -517,14 +634,18 @@ const Reports: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center py-2 border-b border-white/10">
-              <span className="text-slate-400">Max Consecutive Wins</span>
+              <span className="text-slate-400 text-sm">
+                Max Consecutive Wins
+              </span>
               <span className="text-green-400 font-semibold">
                 {stats.streaks.longestWin}
               </span>
             </div>
 
             <div className="flex justify-between items-center py-2">
-              <span className="text-slate-400">Max Consecutive Losses</span>
+              <span className="text-slate-400 text-sm">
+                Max Consecutive Losses
+              </span>
               <span className="text-red-400 font-semibold">
                 {stats.streaks.longestLoss}
               </span>
@@ -533,7 +654,7 @@ const Reports: React.FC = () => {
         </div>
 
         {/* Trading Activity */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <h2 className="text-lg font-semibold text-white mb-6">
             Trading Activity
           </h2>
@@ -541,25 +662,29 @@ const Reports: React.FC = () => {
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-slate-400">Average Daily Volume</span>
+                <span className="text-slate-400 text-sm">
+                  Average Daily Volume
+                </span>
                 <span className="text-white font-semibold">
                   {stats.avgDailyVolume.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-slate-400">Total Trading Days</span>
+                <span className="text-slate-400 text-sm">
+                  Total Trading Days
+                </span>
                 <span className="text-white font-semibold">
                   {stats.tradingDays}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-slate-400">Logged Days</span>
+                <span className="text-slate-400 text-sm">Logged Days</span>
                 <span className="text-white font-semibold">
                   {stats.tradingDays}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Open Trades</span>
+                <span className="text-slate-400 text-sm">Open Trades</span>
                 <span className="text-white font-semibold">
                   {stats.openTrades}
                 </span>

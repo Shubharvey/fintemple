@@ -1,14 +1,17 @@
-// src/pages/Trades.tsx (Updated)
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { tradesAPI } from "../services/api";
 import { Trade } from "../types";
+import { useLoading } from "../contexts/LoadingContext";
+import LoadingSpinner from "../components/Loading/LoadingSpinner";
 import EnhancedSearch from "../components/Search/EnhancedSearch";
+import { Calendar, X, ChevronDown } from "lucide-react";
 
 const Trades: React.FC = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [filteredTrades, setFilteredTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { setLoading: setGlobalLoading } = useLoading();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,18 +21,47 @@ const Trades: React.FC = () => {
     side: "",
   });
 
-  // Legacy filter states (keeping existing functionality)
+  // Enhanced date filter states
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Ref for the date filter dropdown
+  const dateFilterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchTrades();
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    // Add click outside listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
     applyFilters();
   }, [trades, searchQuery, searchFilters, dateFilter, startDate, endDate]);
+
+  // Function to handle clicks outside the dropdown
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      dateFilterRef.current &&
+      !dateFilterRef.current.contains(event.target as Node)
+    ) {
+      setShowCustomDatePicker(false);
+    }
+  };
+
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < 768);
+  };
 
   const fetchTrades = async () => {
     try {
@@ -52,14 +84,10 @@ const Trades: React.FC = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((trade) => {
-        // Search in symbol
         if (trade.symbol.toLowerCase().includes(query)) return true;
-        // Search in strategy
         if (trade.strategy?.toLowerCase().includes(query)) return true;
-        // Search in tags
         if (trade.tags?.some((tag) => tag.toLowerCase().includes(query)))
           return true;
-        // Search in notes
         if (trade.notes?.toLowerCase().includes(query)) return true;
         return false;
       });
@@ -84,12 +112,46 @@ const Trades: React.FC = () => {
       filtered = filtered.filter((trade) => trade.side === searchFilters.side);
     }
 
-    // Date filters (existing logic)
+    // Enhanced date filters
     if (dateFilter === "today") {
       const today = new Date().toDateString();
       filtered = filtered.filter(
         (trade) => new Date(trade.timestamp).toDateString() === today
       );
+    } else if (dateFilter === "yesterday") {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      filtered = filtered.filter(
+        (trade) =>
+          new Date(trade.timestamp).toDateString() === yesterday.toDateString()
+      );
+    } else if (dateFilter === "tomorrow") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      filtered = filtered.filter(
+        (trade) =>
+          new Date(trade.timestamp).toDateString() === tomorrow.toDateString()
+      );
+    } else if (dateFilter === "thisWeek") {
+      const today = new Date();
+      const weekStart = new Date(
+        today.setDate(today.getDate() - today.getDay())
+      );
+      const weekEnd = new Date(
+        today.setDate(today.getDate() - today.getDay() + 6)
+      );
+      filtered = filtered.filter((trade) => {
+        const tradeDate = new Date(trade.timestamp);
+        return tradeDate >= weekStart && tradeDate <= weekEnd;
+      });
+    } else if (dateFilter === "thisMonth") {
+      const today = new Date();
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      filtered = filtered.filter((trade) => {
+        const tradeDate = new Date(trade.timestamp);
+        return tradeDate >= monthStart && tradeDate <= monthEnd;
+      });
     } else if (dateFilter === "custom" && startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -108,8 +170,6 @@ const Trades: React.FC = () => {
     setSearchQuery(query);
     setSearchFilters(filters);
   };
-
-  // ... (keep the rest of your existing functions: calculateStats, formatDate, etc.)
 
   const calculateStats = () => {
     const closedTrades = filteredTrades.filter((trade) => trade.exit);
@@ -186,30 +246,39 @@ const Trades: React.FC = () => {
     setDateFilter("all");
     setStartDate("");
     setEndDate("");
+    setShowCustomDatePicker(false);
   };
 
   const stats = calculateStats();
 
+  const dateOptions = [
+    { value: "all", label: "All Dates" },
+    { value: "today", label: "Today" },
+    { value: "yesterday", label: "Yesterday" },
+    { value: "tomorrow", label: "Tomorrow" },
+    { value: "thisWeek", label: "This Week" },
+    { value: "thisMonth", label: "This Month" },
+    { value: "custom", label: "Custom Range" },
+  ];
+
   if (loading) {
     return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-6">Trades</h1>
+      <div className="p-4 md:p-6">
+        <h1 className="text-xl md:text-2xl font-bold text-white mb-6">
+          Trades
+        </h1>
         <div className="glass-card p-6">
-          <div className="animate-pulse space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-white/10 rounded"></div>
-            ))}
-          </div>
+          <LoadingSpinner size="lg" text="Loading trades data..." />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">Trades</h1>
-        <div className="text-slate-400">
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+        <h1 className="text-xl md:text-2xl font-bold text-white">Trades</h1>
+        <div className="text-slate-400 text-sm md:text-base">
           {stats.totalTrades} trades total ({stats.closedTrades} closed,{" "}
           {stats.openTrades} open)
         </div>
@@ -222,7 +291,7 @@ const Trades: React.FC = () => {
       )}
 
       {/* Enhanced Search Section */}
-      <div className="glass-card p-6 mb-6">
+      <div className="glass-card p-4 md:p-6 mb-6">
         <h2 className="text-lg font-semibold text-white mb-4">Smart Search</h2>
         <EnhancedSearch
           trades={trades}
@@ -231,33 +300,64 @@ const Trades: React.FC = () => {
         />
       </div>
 
-      {/* Legacy Filters Section */}
-      <div className="glass-card p-6 mb-6">
+      {/* Enhanced Date Filters Section */}
+      <div className="glass-card p-4 md:p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-white">Date Filters</h2>
           <button
             onClick={resetFilters}
-            className="glass border border-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm"
+            className="glass border border-white/10 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm"
           >
             Reset All Filters
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Date Filter */}
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Enhanced Date Filter */}
+          <div className="relative" ref={dateFilterRef}>
             <label className="block text-sm font-medium text-slate-400 mb-1">
               Date Range
             </label>
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="custom">Custom Range</option>
-            </select>
+            <div className="relative">
+              <button
+                onClick={() => setShowCustomDatePicker(!showCustomDatePicker)}
+                className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 flex items-center justify-between hover:bg-white/5 transition-colors"
+              >
+                <span>
+                  {dateOptions.find((opt) => opt.value === dateFilter)?.label ||
+                    "Select Date Range"}
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    showCustomDatePicker ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Custom Dropdown */}
+              {showCustomDatePicker && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md">
+                  <div className="p-2 max-h-60 overflow-y-auto">
+                    {dateOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setDateFilter(option.value);
+                          setShowCustomDatePicker(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                          dateFilter === option.value
+                            ? "bg-blue-500/20 text-blue-400"
+                            : "text-slate-300 hover:bg-white/5"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Custom Date Range */}
@@ -298,15 +398,15 @@ const Trades: React.FC = () => {
 
       {/* Statistics Section */}
       {stats.closedTrades > 0 && (
-        <div className="glass-card p-6 mb-6">
+        <div className="glass-card p-4 md:p-6 mb-6">
           <h2 className="text-lg font-semibold text-white mb-4">
             Performance Summary
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
             <div>
-              <div className="text-slate-400 text-sm">Gross P&L</div>
+              <div className="text-slate-400 text-xs md:text-sm">Gross P&L</div>
               <div
-                className={`text-lg font-semibold ${
+                className={`text-base md:text-lg font-semibold ${
                   stats.grossProfit >= 0 ? "text-green-400" : "text-red-400"
                 }`}
               >
@@ -314,9 +414,9 @@ const Trades: React.FC = () => {
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-sm">Net P&L</div>
+              <div className="text-slate-400 text-xs md:text-sm">Net P&L</div>
               <div
-                className={`text-lg font-semibold ${
+                className={`text-base md:text-lg font-semibold ${
                   stats.netProfit >= 0 ? "text-green-400" : "text-red-400"
                 }`}
               >
@@ -324,26 +424,32 @@ const Trades: React.FC = () => {
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-sm">Win Rate</div>
-              <div className="text-lg font-semibold text-white">
+              <div className="text-slate-400 text-xs md:text-sm">Win Rate</div>
+              <div className="text-base md:text-lg font-semibold text-white">
                 {stats.winRate}%
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-sm">Winning Trades</div>
-              <div className="text-lg font-semibold text-green-400">
+              <div className="text-slate-400 text-xs md:text-sm">
+                Winning Trades
+              </div>
+              <div className="text-base md:text-lg font-semibold text-green-400">
                 {stats.winningTrades}
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-sm">Losing Trades</div>
-              <div className="text-lg font-semibold text-red-400">
+              <div className="text-slate-400 text-xs md:text-sm">
+                Losing Trades
+              </div>
+              <div className="text-base md:text-lg font-semibold text-red-400">
                 {stats.losingTrades}
               </div>
             </div>
             <div>
-              <div className="text-slate-400 text-sm">Total Trades</div>
-              <div className="text-lg font-semibold text-white">
+              <div className="text-slate-400 text-xs md:text-sm">
+                Total Trades
+              </div>
+              <div className="text-base md:text-lg font-semibold text-white">
                 {stats.closedTrades}
               </div>
             </div>
@@ -357,34 +463,34 @@ const Trades: React.FC = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Date
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Symbol
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Instrument
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Side
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Type
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Entry
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Exit
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Lot Size
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   P&L
                 </th>
-                <th className="text-left p-4 text-slate-400 font-medium">
+                <th className="text-left p-2 md:p-4 text-slate-400 font-medium text-xs md:text-sm">
                   Strategy
                 </th>
               </tr>
@@ -404,16 +510,16 @@ const Trades: React.FC = () => {
                     key={trade.id}
                     className="border-b border-white/5 hover:bg-white/5"
                   >
-                    <td className="p-4 text-slate-300 text-sm">
+                    <td className="p-2 md:p-4 text-slate-300 text-xs md:text-sm">
                       {formatDate(trade.timestamp)}
                     </td>
-                    <td className="p-4 text-white font-medium">
+                    <td className="p-2 md:p-4 text-white font-medium text-sm">
                       {trade.symbol}
                     </td>
-                    <td className="p-4 text-slate-300 text-sm capitalize">
+                    <td className="p-2 md:p-4 text-slate-300 text-xs md:text-sm capitalize">
                       {trade.instrumentType}
                     </td>
-                    <td className="p-4">
+                    <td className="p-2 md:p-4">
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${
                           trade.side === "buy"
@@ -424,21 +530,23 @@ const Trades: React.FC = () => {
                         {trade.side.toUpperCase()}
                       </span>
                     </td>
-                    <td className="p-4 text-slate-300 text-sm capitalize">
+                    <td className="p-2 md:p-4 text-slate-300 text-xs md:text-sm capitalize">
                       {trade.tradeType?.replace("-", " ") || "-"}
                     </td>
-                    <td className="p-4 text-slate-300">₹{trade.entry}</td>
-                    <td className="p-4 text-slate-300">
+                    <td className="p-2 md:p-4 text-slate-300 text-xs md:text-sm">
+                      ₹{trade.entry}
+                    </td>
+                    <td className="p-2 md:p-4 text-slate-300 text-xs md:text-sm">
                       {trade.exit ? `₹${trade.exit}` : "Open"}
                     </td>
-                    <td className="p-4 text-slate-300">
+                    <td className="p-2 md:p-4 text-slate-300 text-xs md:text-sm">
                       {trade.volume || trade.lot || 1}
                     </td>
-                    <td className="p-4">
+                    <td className="p-2 md:p-4">
                       {trade.exit ? (
                         <div>
                           <div
-                            className={`font-medium ${
+                            className={`font-medium text-xs md:text-sm ${
                               netPnL > 0
                                 ? "text-green-400"
                                 : netPnL < 0
@@ -455,10 +563,10 @@ const Trades: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-500">-</span>
+                        <span className="text-slate-500 text-xs">-</span>
                       )}
                     </td>
-                    <td className="p-4 text-slate-400 text-sm">
+                    <td className="p-2 md:p-4 text-slate-400 text-xs md:text-sm">
                       {trade.strategy || "-"}
                     </td>
                   </tr>

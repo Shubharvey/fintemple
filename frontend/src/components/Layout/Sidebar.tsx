@@ -19,9 +19,14 @@ import { useAuth } from "../../hooks/useAuth";
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  collapsed,
+  onToggle,
+  isMobile = false,
+}) => {
   const location = useLocation();
   const { logout, user } = useAuth();
 
@@ -43,12 +48,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <div
       className={`glass-sidebar h-full flex flex-col bg-slate-900/80 backdrop-blur-xl border-r border-white/10 transition-all duration-500 ease-in-out ${
-        collapsed ? "w-20" : "w-64"
+        isMobile ? "w-64" : collapsed ? "w-20" : "w-64"
       }`}
     >
       {/* Logo and Toggle Button */}
       <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        {!collapsed && (
+        {!collapsed && !isMobile && (
           <h1 className="text-2xl font-bold text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent transition-opacity duration-500 ease-in-out">
             FinTemple
           </h1>
@@ -57,7 +62,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           onClick={onToggle}
           className="p-2 hover:bg-white/10 rounded-lg transition-all duration-300 ease-out hover:scale-110"
         >
-          {collapsed ? (
+          {collapsed || isMobile ? (
             <ChevronRight className="w-4 h-4 text-slate-300 transition-transform duration-300" />
           ) : (
             <ChevronLeft className="w-4 h-4 text-slate-300 transition-transform duration-300" />
@@ -65,8 +70,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         </button>
       </div>
 
-      {/* User Info - FIXED */}
-      {!collapsed && user && (
+      {/* User Info - Hidden on mobile */}
+      {!collapsed && !isMobile && user && (
         <div className="p-4 border-b border-white/10 transition-all duration-500 ease-in-out">
           <div className="flex items-center space-x-3 animate-in slide-in-from-left-8 duration-500">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
@@ -90,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       {/* Navigation */}
       <div className="flex-1 p-4 space-y-8 transition-all duration-500 ease-in-overflow-auto">
         <div className="space-y-2">
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 pl-3 transition-all duration-500 ease-in-out animate-in slide-in-from-left-6">
               Tracker
             </h3>
@@ -103,14 +108,19 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 <Link
                   key={item.label}
                   to={item.href}
+                  onClick={() => {
+                    if (isMobile) {
+                      onToggle(); // Close mobile sidebar after navigation
+                    }
+                  }}
                   className={`flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 ease-out group relative overflow-hidden ${
-                    collapsed ? "justify-center" : ""
+                    collapsed && !isMobile ? "justify-center" : ""
                   } ${
                     isActive
                       ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border border-blue-500/30 shadow-lg shadow-blue-500/20 transform scale-[1.02]"
                       : "text-slate-300 hover:text-white hover:bg-white/10 hover:scale-[1.02] hover:shadow-lg"
                   }`}
-                  title={collapsed ? item.label : ""}
+                  title={collapsed && !isMobile ? item.label : ""}
                 >
                   {/* Active state indicator */}
                   {isActive && (
@@ -119,11 +129,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
                   <Icon
                     className={`transition-all duration-300 ${
-                      collapsed ? "w-5 h-5" : "w-4 h-4 mr-3"
+                      collapsed && !isMobile ? "w-5 h-5" : "w-4 h-4 mr-3"
                     } ${isActive ? "scale-110" : "group-hover:scale-110"}`}
                   />
 
-                  {!collapsed && (
+                  {(!collapsed || isMobile) && (
                     <span className="transition-all duration-300 ease-out whitespace-nowrap">
                       {item.label}
                     </span>
@@ -138,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         </div>
 
         <div className="space-y-2">
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 pl-3 transition-all duration-500 ease-in-out animate-in slide-in-from-left-6">
               Community
             </h3>
@@ -151,14 +161,19 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 <Link
                   key={item.label}
                   to={item.href}
+                  onClick={() => {
+                    if (isMobile) {
+                      onToggle(); // Close mobile sidebar after navigation
+                    }
+                  }}
                   className={`flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 ease-out group relative overflow-hidden ${
-                    collapsed ? "justify-center" : ""
+                    collapsed && !isMobile ? "justify-center" : ""
                   } ${
                     isActive
                       ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30 shadow-lg shadow-green-500/20 transform scale-[1.02]"
                       : "text-slate-300 hover:text-white hover:bg-white/10 hover:scale-[1.02] hover:shadow-lg"
                   }`}
-                  title={collapsed ? item.label : ""}
+                  title={collapsed && !isMobile ? item.label : ""}
                 >
                   {/* Active state indicator */}
                   {isActive && (
@@ -167,11 +182,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
 
                   <Icon
                     className={`transition-all duration-300 ${
-                      collapsed ? "w-5 h-5" : "w-4 h-4 mr-3"
+                      collapsed && !isMobile ? "w-5 h-5" : "w-4 h-4 mr-3"
                     } ${isActive ? "scale-110" : "group-hover:scale-110"}`}
                   />
 
-                  {!collapsed && (
+                  {(!collapsed || isMobile) && (
                     <span className="transition-all duration-300 ease-out whitespace-nowrap">
                       {item.label}
                     </span>
@@ -186,29 +201,33 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         </div>
       </div>
 
-      {/* Logout Button */}
-      <div className="p-4 border-t border-white/10 transition-all duration-500 ease-in-out">
-        <button
-          onClick={logout}
-          className={`flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 ease-out w-full group relative overflow-hidden ${
-            collapsed ? "justify-center" : ""
-          } text-red-400 hover:text-white hover:bg-red-500/20 hover:scale-[1.02] hover:shadow-lg border border-transparent hover:border-red-500/30`}
-          title={collapsed ? "Logout" : ""}
-        >
-          <LogOut
-            className={`transition-all duration-300 ${
-              collapsed ? "w-5 h-5" : "w-4 h-4 mr-3"
-            } group-hover:scale-110`}
-          />
+      {/* Logout Button - Hidden on mobile */}
+      {!isMobile && (
+        <div className="p-4 border-t border-white/10 transition-all duration-500 ease-in-out">
+          <button
+            onClick={logout}
+            className={`flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-all duration-300 ease-out w-full group relative overflow-hidden ${
+              collapsed ? "justify-center" : ""
+            } text-red-400 hover:text-white hover:bg-red-500/20 hover:scale-[1.02] hover:shadow-lg border border-transparent hover:border-red-500/30`}
+            title={collapsed ? "Logout" : ""}
+          >
+            <LogOut
+              className={`transition-all duration-300 ${
+                collapsed ? "w-5 h-5" : "w-4 h-4 mr-3"
+              } group-hover:scale-110`}
+            />
 
-          {!collapsed && (
-            <span className="transition-all duration-300 ease-out">Logout</span>
-          )}
+            {!collapsed && (
+              <span className="transition-all duration-300 ease-out">
+                Logout
+              </span>
+            )}
 
-          {/* Hover effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-        </button>
-      </div>
+            {/* Hover effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

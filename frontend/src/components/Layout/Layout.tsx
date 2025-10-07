@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import BottomNavigation from "./BottomNavigation";
+import { useAuth } from "../../hooks/useAuth";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,16 +10,56 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setShowMobileSidebar(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
+    if (isMobile) {
+      setShowMobileSidebar(!showMobileSidebar);
+    } else {
+      setSidebarCollapsed(!sidebarCollapsed);
+    }
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Sidebar container with scroll */}
-      <div className="h-full overflow-y-auto">
-        <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+    <div className="flex h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative">
+      {/* Mobile Sidebar Overlay */}
+      {isMobile && showMobileSidebar && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
+      {/* Sidebar - Hidden on mobile, shown as overlay */}
+      <div
+        className={`${
+          isMobile
+            ? `fixed left-0 top-0 h-full z-50 transform transition-transform duration-300 ${
+                showMobileSidebar ? "translate-x-0" : "-translate-x-full"
+              }`
+            : "relative h-full overflow-y-auto"
+        }`}
+      >
+        <Sidebar
+          collapsed={isMobile ? false : sidebarCollapsed}
+          onToggle={toggleSidebar}
+          isMobile={isMobile}
+        />
       </div>
 
       {/* Main content area */}
@@ -25,8 +67,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <TopBar
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
+          isMobile={isMobile}
         />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-6 p-4 md:p-6">
+          {children}
+        </main>
+
+        {/* Bottom Navigation - Mobile Only */}
+        {isMobile && <BottomNavigation user={user} />}
       </div>
     </div>
   );

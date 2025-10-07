@@ -1,12 +1,413 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { tradesAPI } from "../../services/api";
 import { Trade } from "../../types";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TradeFormProps {
   onTradeAdded: () => void;
   onCancel: () => void;
 }
+
+// Custom dropdown component
+const CustomDropdown: React.FC<{
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  required?: boolean;
+}> = ({ label, value, options, onChange, required = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Add click outside listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Function to handle clicks outside the dropdown
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node)
+    ) {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-sm font-medium text-slate-400 mb-1">
+        {label} {required && "*"}
+      </label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 flex items-center justify-between hover:bg-white/5 transition-colors"
+        >
+          <span>
+            {options.find((opt) => opt.value === value)?.label ||
+              "Select Option"}
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {/* Custom Dropdown */}
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md">
+            <div className="p-2 max-h-60 overflow-y-auto">
+              {options.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                    value === option.value
+                      ? "bg-blue-500/20 text-blue-400"
+                      : "text-slate-300 hover:bg-white/5"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Custom date/time picker component with custom calendar
+const CustomDateTimePicker: React.FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+}> = ({ label, value, onChange, required = false }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date(value || new Date()));
+  const [selectedDate, setSelectedDate] = useState(
+    new Date(value || new Date())
+  );
+  const [selectedHour, setSelectedHour] = useState(
+    new Date(value || new Date()).getHours()
+  );
+  const [selectedMinute, setSelectedMinute] = useState(
+    new Date(value || new Date()).getMinutes()
+  );
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Add click outside listener
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Function to handle clicks outside the picker
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      pickerRef.current &&
+      !pickerRef.current.contains(event.target as Node)
+    ) {
+      setIsOpen(false);
+    }
+  };
+
+  // Format the datetime for display
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Get days in month
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  // Get first day of month (0 = Sunday, 1 = Monday, etc.)
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  // Navigate to previous month
+  const previousMonth = () => {
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
+    );
+  };
+
+  // Navigate to next month
+  const nextMonth = () => {
+    setCurrentDate(
+      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)
+    );
+  };
+
+  // Handle date selection
+  const selectDate = (day: number) => {
+    const newDate = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      day,
+      selectedHour,
+      selectedMinute
+    );
+    setSelectedDate(newDate);
+  };
+
+  // Handle time selection
+  const updateTime = () => {
+    const newDate = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+      selectedHour,
+      selectedMinute
+    );
+    setSelectedDate(newDate);
+    setShowTimePicker(false);
+  };
+
+  // Apply the selected date/time
+  const applyDateTime = () => {
+    const isoString = selectedDate.toISOString();
+    onChange(isoString);
+    setIsOpen(false);
+  };
+
+  // Use current date/time
+  const useCurrentDateTime = () => {
+    const now = new Date();
+    setSelectedDate(now);
+    setSelectedHour(now.getHours());
+    setSelectedMinute(now.getMinutes());
+    setCurrentDate(now);
+  };
+
+  // Generate calendar days
+  const generateCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentDate);
+    const firstDayOfMonth = getFirstDayOfMonth(currentDate);
+    const days = [];
+
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(<div key={`empty-${i}`} className="h-8"></div>);
+    }
+
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isSelected =
+        day === selectedDate.getDate() &&
+        currentDate.getMonth() === selectedDate.getMonth() &&
+        currentDate.getFullYear() === selectedDate.getFullYear();
+
+      days.push(
+        <button
+          key={day}
+          type="button"
+          onClick={() => selectDate(day)}
+          className={`h-8 rounded-lg flex items-center justify-center text-sm transition-colors ${
+            isSelected
+              ? "bg-blue-500 text-white"
+              : "text-slate-300 hover:bg-white/10"
+          }`}
+        >
+          {day}
+        </button>
+      );
+    }
+
+    return days;
+  };
+
+  // Generate hour options
+  const generateHourOptions = () => {
+    const hours = [];
+    for (let i = 0; i < 24; i++) {
+      hours.push(
+        <option key={i} value={i}>
+          {i.toString().padStart(2, "0")}
+        </option>
+      );
+    }
+    return hours;
+  };
+
+  // Generate minute options
+  const generateMinuteOptions = () => {
+    const minutes = [];
+    for (let i = 0; i < 60; i++) {
+      minutes.push(
+        <option key={i} value={i}>
+          {i.toString().padStart(2, "0")}
+        </option>
+      );
+    }
+    return minutes;
+  };
+
+  return (
+    <div className="relative" ref={pickerRef}>
+      <label className="block text-sm font-medium text-slate-400 mb-1">
+        {label} {required && "*"}
+      </label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 flex items-center justify-between hover:bg-white/5 transition-colors"
+        >
+          <span className="flex items-center">
+            <Calendar className="w-4 h-4 mr-2 text-slate-400" />
+            {formatDateTime(selectedDate)}
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {/* Custom Date/Time Picker */}
+        {isOpen && (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg shadow-lg z-50 backdrop-blur-md p-4">
+            {!showTimePicker ? (
+              // Calendar View
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <button
+                    type="button"
+                    onClick={previousMonth}
+                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-400" />
+                  </button>
+                  <h3 className="text-white font-medium">
+                    {currentDate.toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={nextMonth}
+                    className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-xs text-slate-400 text-center">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                    <div
+                      key={index}
+                      className="h-6 flex items-center justify-center"
+                    >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-1">
+                  {generateCalendarDays()}
+                </div>
+
+                <div className="flex justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setShowTimePicker(true)}
+                    className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                  >
+                    Set Time
+                  </button>
+                  <button
+                    type="button"
+                    onClick={useCurrentDateTime}
+                    className="px-3 py-1 bg-slate-700 text-white rounded-lg text-sm hover:bg-slate-600 transition-colors"
+                  >
+                    Now
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Time Picker View
+              <div className="space-y-3">
+                <h3 className="text-white font-medium text-center">Set Time</h3>
+                <div className="flex justify-center items-center space-x-2">
+                  <select
+                    value={selectedHour}
+                    onChange={(e) => setSelectedHour(parseInt(e.target.value))}
+                    className="bg-slate-700 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {generateHourOptions()}
+                  </select>
+                  <span className="text-white">:</span>
+                  <select
+                    value={selectedMinute}
+                    onChange={(e) =>
+                      setSelectedMinute(parseInt(e.target.value))
+                    }
+                    className="bg-slate-700 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {generateMinuteOptions()}
+                  </select>
+                </div>
+                <div className="flex justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setShowTimePicker(false)}
+                    className="px-3 py-1 bg-slate-700 text-white rounded-lg text-sm hover:bg-slate-600 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={updateTime}
+                    className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                  >
+                    Set Time
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={applyDateTime}
+                className="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
   const [formData, setFormData] = useState<Partial<Trade>>({
@@ -104,15 +505,19 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
         ...prev,
         [name]: value.split(",").map((tag) => tag.trim()),
       }));
-    } else if (type === "datetime-local") {
-      // Fix timezone issue - use the local time directly without conversion
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value || new Date().toISOString().slice(0, 16),
-      }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
+  };
+
+  // Handle custom dropdown changes
+  const handleDropdownChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Handle custom date/time picker changes
+  const handleDateTimeChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, timestamp: value }));
   };
 
   const calculatePnL = () => {
@@ -138,14 +543,31 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
     return "text-slate-300";
   };
 
-  // Get current local datetime in correct format for datetime-local input
-  const getCurrentDateTimeLocal = () => {
-    const now = new Date();
-    // Adjust for timezone offset to get local time
-    const timezoneOffset = now.getTimezoneOffset() * 60000;
-    const localTime = new Date(now.getTime() - timezoneOffset);
-    return localTime.toISOString().slice(0, 16);
-  };
+  // Define options for dropdowns
+  const instrumentTypeOptions = [
+    { value: "forex", label: "Forex" },
+    { value: "commodity", label: "Commodity" },
+    { value: "stock", label: "Stock" },
+    { value: "stock-options", label: "Stock Options" },
+    { value: "futures", label: "Futures" },
+    { value: "index-option", label: "Index Option" },
+    { value: "index-future", label: "Index Future" },
+    { value: "crypto", label: "Crypto" },
+  ];
+
+  const tradeTypeOptions = [
+    { value: "intraday", label: "Intraday" },
+    { value: "scalp", label: "Scalp" },
+    { value: "swing", label: "Swing" },
+    { value: "short-term", label: "Short Term" },
+    { value: "long-term", label: "Long Term" },
+    { value: "delivery", label: "Delivery" },
+  ];
+
+  const sideOptions = [
+    { value: "buy", label: "Buy" },
+    { value: "sell", label: "Sell" },
+  ];
 
   return (
     <div className="glass-card p-4 md:p-6 max-w-4xl mx-auto">
@@ -176,83 +598,39 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
           </div>
 
           {/* Instrument Type */}
-          <div className="relative">
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Instrument Type *
-            </label>
-            <select
-              name="instrumentType"
-              value={formData.instrumentType}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer pr-10"
-            >
-              <option value="forex">Forex</option>
-              <option value="commodity">Commodity</option>
-              <option value="stock">Stock</option>
-              <option value="stock-options">Stock Options</option>
-              <option value="futures">Futures</option>
-              <option value="index-option">Index Option</option>
-              <option value="index-future">Index Future</option>
-              <option value="crypto">Crypto</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-9 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            label="Instrument Type"
+            value={formData.instrumentType || "forex"}
+            options={instrumentTypeOptions}
+            onChange={(value) => handleDropdownChange("instrumentType", value)}
+            required={true}
+          />
 
           {/* Trade Type */}
-          <div className="relative">
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Trade Type *
-            </label>
-            <select
-              name="tradeType"
-              value={formData.tradeType}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer pr-10"
-            >
-              <option value="intraday">Intraday</option>
-              <option value="scalp">Scalp</option>
-              <option value="swing">Swing</option>
-              <option value="short-term">Short Term</option>
-              <option value="long-term">Long Term</option>
-              <option value="delivery">Delivery</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-9 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            label="Trade Type"
+            value={formData.tradeType || "intraday"}
+            options={tradeTypeOptions}
+            onChange={(value) => handleDropdownChange("tradeType", value)}
+            required={true}
+          />
 
           {/* Side */}
-          <div className="relative">
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Side *
-            </label>
-            <select
-              name="side"
-              value={formData.side}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors appearance-none cursor-pointer pr-10"
-            >
-              <option value="buy">Buy</option>
-              <option value="sell">Sell</option>
-            </select>
-            <ChevronDown className="absolute right-3 top-9 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
+          <CustomDropdown
+            label="Side"
+            value={formData.side || "buy"}
+            options={sideOptions}
+            onChange={(value) => handleDropdownChange("side", value)}
+            required={true}
+          />
 
-          {/* Date & Time - FIXED */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Date & Time *
-            </label>
-            <input
-              type="datetime-local"
-              name="timestamp"
-              value={formData.timestamp || getCurrentDateTimeLocal()}
-              onChange={handleChange}
-              required
-              className="w-full bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-            />
-          </div>
+          {/* Date & Time - Custom Component with Custom Calendar */}
+          <CustomDateTimePicker
+            label="Date & Time"
+            value={formData.timestamp || new Date().toISOString()}
+            onChange={handleDateTimeChange}
+            required={true}
+          />
 
           {/* Lot Size */}
           <div>
@@ -481,32 +859,6 @@ const TradeForm: React.FC<TradeFormProps> = ({ onTradeAdded, onCancel }) => {
           </button>
         </div>
       </form>
-
-      {/* Custom CSS for dropdown styling */}
-      <style>{`
-        select {
-          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-          background-position: right 0.5rem center;
-          background-repeat: no-repeat;
-          background-size: 1.5em 1.5em;
-          padding-right: 2.5rem;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-        
-        select option {
-          background-color: #1e293b;
-          color: white;
-          padding: 8px;
-        }
-        
-        select option:hover,
-        select option:focus,
-        select option:checked {
-          background-color: #3b82f6 !important;
-          color: white !important;
-        }
-      `}</style>
     </div>
   );
 };
