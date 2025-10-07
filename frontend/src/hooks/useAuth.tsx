@@ -5,17 +5,21 @@ import React, {
   ReactNode,
   useEffect,
 } from "react";
+import { googleLogout } from "@react-oauth/google";
 import { authAPI } from "../services/api";
 
 interface User {
   id: string;
   email: string;
   name?: string;
+  avatar?: string;
+  provider?: "email" | "google";
 }
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
@@ -55,11 +59,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.login({ email, password });
 
-      // ✅ FIXED: Access the response data correctly
-      console.log("Full login response:", response); // Debug log
-      console.log("Login response data:", response.data); // Debug log
+      console.log("Full login response:", response);
+      console.log("Login response data:", response.data);
 
-      const userData = response.data.user; // Axios puts data in response.data
+      const userData = response.data.user;
 
       if (!userData) {
         throw new Error("No user data received");
@@ -71,13 +74,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error("Login error:", error);
 
-      // ✅ FIXED: Better error extraction
       const errorMessage =
         error.response?.data?.error ||
         error.response?.data?.message ||
         error.message ||
         "Login failed";
       throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 👇 NEW: Google Login Function
+  const loginWithGoogle = async (credential: string): Promise<void> => {
+    setLoading(true);
+    try {
+      // Decode Google credential (you might want to verify this on backend)
+      const decodedToken = JSON.parse(atob(credential.split(".")[1]));
+
+      const googleUser: User = {
+        id: decodedToken.sub,
+        email: decodedToken.email,
+        name: decodedToken.name,
+        avatar: decodedToken.picture,
+        provider: "google",
+      };
+
+      // Store auth data
+      localStorage.setItem("user_data", JSON.stringify(googleUser));
+      setUser(googleUser);
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      throw new Error("Google login failed");
     } finally {
       setLoading(false);
     }
@@ -92,11 +120,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authAPI.register({ email, password, name });
 
-      // ✅ FIXED: Access the response data correctly
-      console.log("Full register response:", response); // Debug log
-      console.log("Register response data:", response.data); // Debug log
+      console.log("Full register response:", response);
+      console.log("Register response data:", response.data);
 
-      const userData = response.data.user; // Axios puts data in response.data
+      const userData = response.data.user;
 
       if (!userData) {
         throw new Error("No user data received");
@@ -108,7 +135,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error("Registration error:", error);
 
-      // ✅ FIXED: Better error extraction
       const errorMessage =
         error.response?.data?.error ||
         error.response?.data?.message ||
@@ -120,13 +146,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // 👇 UPDATED: Logout function to handle Google logout
   const logout = (): void => {
+    // Check if user logged in with Google and logout from Google
+    if (user?.provider === "google") {
+      googleLogout();
+    }
+
     localStorage.removeItem("user_data");
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider
+      value={{ user, login, loginWithGoogle, register, logout, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -139,3 +173,5 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+
+export default useAuth;

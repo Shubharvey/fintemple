@@ -177,12 +177,37 @@ export const testAuthEndpoint = async (): Promise<{
 };
 
 // Rest of your API exports remain the same...
+// src/services/api.ts (Add these new functions to tradesAPI)
 export const tradesAPI = {
   getAll: (params?: any) => api.get("/trades", { params }),
   getById: (id: string) => api.get(`/trades/${id}`),
   create: (trade: any) => api.post("/trades", trade),
   update: (id: string, trade: any) => api.put(`/trades/${id}`, trade),
   bulkImport: (trades: any[]) => api.post("/trades/bulk", trades),
+
+  // Enhanced search endpoints
+  search: (
+    query: string,
+    filters?: {
+      instrumentType?: string;
+      tradeType?: string;
+      side?: string;
+      startDate?: string;
+      endDate?: string;
+    }
+  ) =>
+    api.get("/trades/search", {
+      params: { q: query, ...filters },
+    }),
+
+  getSuggestions: (query: string) =>
+    api.get("/trades/suggestions", {
+      params: { q: query },
+    }),
+
+  getPopularSymbols: () => api.get("/trades/popular-symbols"),
+  getInstrumentTypes: () => api.get("/trades/instrument-types"),
+  getTradeTypes: () => api.get("/trades/trade-types"),
 };
 
 export const reportsAPI = {

@@ -5,6 +5,10 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+
+// 👇 ADD THIS IMPORT - Google OAuth Provider
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import Layout from "./components/Layout/Layout";
 import LandingPage from "./pages/LandingPage";
@@ -16,6 +20,11 @@ import Reports from "./pages/Reports";
 import NewTrade from "./pages/NewTrade";
 import Import from "./pages/Import";
 import Calendar from "./pages/Calendar";
+
+// 👇 ADD THIS - Your Google Client ID from Google Cloud Console
+// Replace "YOUR_GOOGLE_CLIENT_ID_HERE" with your actual Client ID
+const GOOGLE_CLIENT_ID =
+  "672076840589-inilsqadhthidpshvbjj1sihn2gsanb9.apps.googleusercontent.com";
 
 // Protected Route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
@@ -70,116 +79,121 @@ const Community: React.FC = () => {
   );
 };
 
+// 👇 UPDATE THIS FUNCTION - Wrap with GoogleOAuthProvider
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public routes */}
-          <Route
-            path="/"
-            element={
-              <PublicRoute>
-                <LandingPage />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            }
-          />
+    // 👇 WRAP YOUR EXISTING APP WITH GoogleOAuthProvider
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Public routes */}
+            <Route
+              path="/"
+              element={
+                <PublicRoute>
+                  <LandingPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                <PublicRoute>
+                  <Register />
+                </PublicRoute>
+              }
+            />
 
-          {/* Protected routes */}
-          <Route
-            path="/search"
-            element={
-              <ProtectedRoute>
-                <Search />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/trades"
-            element={
-              <ProtectedRoute>
-                <Trades />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute>
-                <Reports />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/new-trade"
-            element={
-              <ProtectedRoute>
-                <NewTrade />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/import"
-            element={
-              <ProtectedRoute>
-                <Import />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute>
-                <Calendar />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/journal"
-            element={
-              <ProtectedRoute>
-                <Journal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/community"
-            element={
-              <ProtectedRoute>
-                <Community />
-              </ProtectedRoute>
-            }
-          />
+            {/* Protected routes */}
+            <Route
+              path="/search"
+              element={
+                <ProtectedRoute>
+                  <Search />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trades"
+              element={
+                <ProtectedRoute>
+                  <Trades />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <Reports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/new-trade"
+              element={
+                <ProtectedRoute>
+                  <NewTrade />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/import"
+              element={
+                <ProtectedRoute>
+                  <Import />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <Calendar />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/journal"
+              element={
+                <ProtectedRoute>
+                  <Journal />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/community"
+              element={
+                <ProtectedRoute>
+                  <Community />
+                </ProtectedRoute>
+              }
+            />
 
-          {/* Redirect any unknown routes to dashboard */}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+            {/* Redirect any unknown routes to dashboard */}
+            <Route path="*" element={<Navigate to="/dashboard" />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+      {/* 👇 CLOSE THE GoogleOAuthProvider */}
+    </GoogleOAuthProvider>
   );
 }
 

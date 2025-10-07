@@ -1,6 +1,8 @@
+// src/pages/Trades.tsx (Updated)
 import React, { useState, useEffect } from "react";
 import { tradesAPI } from "../services/api";
 import { Trade } from "../types";
+import EnhancedSearch from "../components/Search/EnhancedSearch";
 
 const Trades: React.FC = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -8,13 +10,18 @@ const Trades: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter states
-  const [dateFilter, setDateFilter] = useState<string>("all"); // "all", "today", "custom"
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFilters, setSearchFilters] = useState({
+    instrumentType: "",
+    tradeType: "",
+    side: "",
+  });
+
+  // Legacy filter states (keeping existing functionality)
+  const [dateFilter, setDateFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [symbolFilter, setSymbolFilter] = useState<string>("");
-  const [sideFilter, setSideFilter] = useState<string>("all");
-  const [tradeTypeFilter, setTradeTypeFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchTrades();
@@ -22,15 +29,7 @@ const Trades: React.FC = () => {
 
   useEffect(() => {
     applyFilters();
-  }, [
-    trades,
-    dateFilter,
-    startDate,
-    endDate,
-    symbolFilter,
-    sideFilter,
-    tradeTypeFilter,
-  ]);
+  }, [trades, searchQuery, searchFilters, dateFilter, startDate, endDate]);
 
   const fetchTrades = async () => {
     try {
@@ -49,7 +48,43 @@ const Trades: React.FC = () => {
   const applyFilters = () => {
     let filtered = [...trades];
 
-    // Date filter
+    // Enhanced search filters
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((trade) => {
+        // Search in symbol
+        if (trade.symbol.toLowerCase().includes(query)) return true;
+        // Search in strategy
+        if (trade.strategy?.toLowerCase().includes(query)) return true;
+        // Search in tags
+        if (trade.tags?.some((tag) => tag.toLowerCase().includes(query)))
+          return true;
+        // Search in notes
+        if (trade.notes?.toLowerCase().includes(query)) return true;
+        return false;
+      });
+    }
+
+    // Instrument type filter
+    if (searchFilters.instrumentType) {
+      filtered = filtered.filter(
+        (trade) => trade.instrumentType === searchFilters.instrumentType
+      );
+    }
+
+    // Trade type filter
+    if (searchFilters.tradeType) {
+      filtered = filtered.filter(
+        (trade) => trade.tradeType === searchFilters.tradeType
+      );
+    }
+
+    // Side filter
+    if (searchFilters.side) {
+      filtered = filtered.filter((trade) => trade.side === searchFilters.side);
+    }
+
+    // Date filters (existing logic)
     if (dateFilter === "today") {
       const today = new Date().toDateString();
       filtered = filtered.filter(
@@ -58,7 +93,7 @@ const Trades: React.FC = () => {
     } else if (dateFilter === "custom" && startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include entire end day
+      end.setHours(23, 59, 59, 999);
 
       filtered = filtered.filter((trade) => {
         const tradeDate = new Date(trade.timestamp);
@@ -66,27 +101,15 @@ const Trades: React.FC = () => {
       });
     }
 
-    // Symbol filter
-    if (symbolFilter) {
-      filtered = filtered.filter((trade) =>
-        trade.symbol.toLowerCase().includes(symbolFilter.toLowerCase())
-      );
-    }
-
-    // Side filter
-    if (sideFilter !== "all") {
-      filtered = filtered.filter((trade) => trade.side === sideFilter);
-    }
-
-    // Trade type filter
-    if (tradeTypeFilter !== "all") {
-      filtered = filtered.filter(
-        (trade) => trade.tradeType === tradeTypeFilter
-      );
-    }
-
     setFilteredTrades(filtered);
   };
+
+  const handleSearch = (query: string, filters: typeof searchFilters) => {
+    setSearchQuery(query);
+    setSearchFilters(filters);
+  };
+
+  // ... (keep the rest of your existing functions: calculateStats, formatDate, etc.)
 
   const calculateStats = () => {
     const closedTrades = filteredTrades.filter((trade) => trade.exit);
@@ -144,7 +167,6 @@ const Trades: React.FC = () => {
     }).format(amount);
   };
 
-  // Calculate P&L locally
   const calculateLocalPnL = (trade: Trade) => {
     if (!trade.exit) return null;
 
@@ -159,12 +181,11 @@ const Trades: React.FC = () => {
   };
 
   const resetFilters = () => {
+    setSearchQuery("");
+    setSearchFilters({ instrumentType: "", tradeType: "", side: "" });
     setDateFilter("all");
     setStartDate("");
     setEndDate("");
-    setSymbolFilter("");
-    setSideFilter("all");
-    setTradeTypeFilter("all");
   };
 
   const stats = calculateStats();
@@ -200,11 +221,29 @@ const Trades: React.FC = () => {
         </div>
       )}
 
-      {/* Filters Section */}
+      {/* Enhanced Search Section */}
       <div className="glass-card p-6 mb-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Filters</h2>
+        <h2 className="text-lg font-semibold text-white mb-4">Smart Search</h2>
+        <EnhancedSearch
+          trades={trades}
+          onSearch={handleSearch}
+          placeholder="Search by symbol, strategy, tags, or notes..."
+        />
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      {/* Legacy Filters Section */}
+      <div className="glass-card p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-white">Date Filters</h2>
+          <button
+            onClick={resetFilters}
+            className="glass border border-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm"
+          >
+            Reset All Filters
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Date Filter */}
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">
@@ -248,68 +287,12 @@ const Trades: React.FC = () => {
               </div>
             </>
           )}
-
-          {/* Symbol Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Symbol
-            </label>
-            <input
-              type="text"
-              value={symbolFilter}
-              onChange={(e) => setSymbolFilter(e.target.value)}
-              placeholder="Filter by symbol..."
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          {/* Side Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Side
-            </label>
-            <select
-              value={sideFilter}
-              onChange={(e) => setSideFilter(e.target.value)}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Sides</option>
-              <option value="buy">Buy Only</option>
-              <option value="sell">Sell Only</option>
-            </select>
-          </div>
-
-          {/* Trade Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">
-              Trade Type
-            </label>
-            <select
-              value={tradeTypeFilter}
-              onChange={(e) => setTradeTypeFilter(e.target.value)}
-              className="w-full glass border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">All Types</option>
-              <option value="intraday">Intraday</option>
-              <option value="scalp">Scalp</option>
-              <option value="swing">Swing</option>
-              <option value="short-term">Short Term</option>
-              <option value="long-term">Long Term</option>
-              <option value="delivery">Delivery</option>
-            </select>
-          </div>
         </div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mt-4">
           <div className="text-slate-400 text-sm">
             Showing {filteredTrades.length} of {trades.length} trades
           </div>
-          <button
-            onClick={resetFilters}
-            className="glass border border-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/5 transition-colors"
-          >
-            Reset Filters
-          </button>
         </div>
       </div>
 
@@ -381,6 +364,9 @@ const Trades: React.FC = () => {
                   Symbol
                 </th>
                 <th className="text-left p-4 text-slate-400 font-medium">
+                  Instrument
+                </th>
+                <th className="text-left p-4 text-slate-400 font-medium">
                   Side
                 </th>
                 <th className="text-left p-4 text-slate-400 font-medium">
@@ -423,6 +409,9 @@ const Trades: React.FC = () => {
                     </td>
                     <td className="p-4 text-white font-medium">
                       {trade.symbol}
+                    </td>
+                    <td className="p-4 text-slate-300 text-sm capitalize">
+                      {trade.instrumentType}
                     </td>
                     <td className="p-4">
                       <span
