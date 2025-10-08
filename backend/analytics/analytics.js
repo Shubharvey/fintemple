@@ -434,6 +434,289 @@ class TradingAnalytics {
     };
   }
 
+  // ==================== NEW FUNCTIONS FOR DASHBOARD ENDPOINTS ====================
+
+  /**
+   * Get performance data grouped by instrument/symbol
+   * Used by: /api/dashboard/by-instrument
+   */
+  static getPerformanceByInstrument(trades) {
+    const instruments = {};
+
+    trades.forEach((trade) => {
+      const symbol = trade.symbol || "Unknown";
+      if (!instruments[symbol]) {
+        instruments[symbol] = {
+          symbol,
+          trades: [],
+          totalPnL: 0,
+          winRate: 0,
+          profitFactor: 0,
+          avgRR: 0,
+          totalTrades: 0,
+        };
+      }
+      instruments[symbol].trades.push(trade);
+    });
+
+    return Object.values(instruments)
+      .map((instrument) => {
+        const closedTrades = instrument.trades.filter((t) => t.exit);
+        const profits = closedTrades.map(
+          (t) => this.computeTradePnL(t).profitMoney
+        );
+        const winningTrades = profits.filter((p) => p > 0);
+        const losingTrades = profits.filter((p) => p < 0);
+
+        const totalPnL = profits.reduce((sum, p) => sum + p, 0);
+        const grossProfit = winningTrades.reduce((sum, p) => sum + p, 0);
+        const grossLoss = Math.abs(losingTrades.reduce((sum, p) => sum + p, 0));
+
+        // Calculate average RR ratio
+        const rrRatios = closedTrades
+          .filter((t) => t.sl)
+          .map((trade) => {
+            const risk = Math.abs(trade.entry - trade.sl);
+            const reward = Math.abs(trade.exit - trade.entry);
+            return risk > 0 ? reward / risk : 0;
+          })
+          .filter((rr) => rr > 0);
+
+        return {
+          symbol: instrument.symbol,
+          totalTrades: closedTrades.length,
+          totalPnL,
+          winRate:
+            closedTrades.length > 0
+              ? winningTrades.length / closedTrades.length
+              : 0,
+          profitFactor:
+            grossLoss === 0
+              ? grossProfit > 0
+                ? Infinity
+                : 0
+              : grossProfit / grossLoss,
+          avgRR:
+            rrRatios.length > 0
+              ? rrRatios.reduce((sum, rr) => sum + rr, 0) / rrRatios.length
+              : 0,
+          grossProfit,
+          grossLoss: Math.abs(grossLoss),
+        };
+      })
+      .filter((instrument) => instrument.totalTrades > 0)
+      .sort((a, b) => b.totalPnL - a.totalPnL);
+  }
+
+  /**
+   * Get performance data grouped by setup/strategy
+   * Used by: /api/dashboard/by-setup
+   */
+  static getPerformanceBySetup(trades) {
+    const setups = {};
+
+    trades.forEach((trade) => {
+      const setup = trade.setup || trade.strategy || "Uncategorized";
+      if (!setups[setup]) {
+        setups[setup] = {
+          setup,
+          trades: [],
+          totalPnL: 0,
+          winRate: 0,
+          profitFactor: 0,
+          avgRR: 0,
+          totalTrades: 0,
+        };
+      }
+      setups[setup].trades.push(trade);
+    });
+
+    return Object.values(setups)
+      .map((setup) => {
+        const closedTrades = setup.trades.filter((t) => t.exit);
+        const profits = closedTrades.map(
+          (t) => this.computeTradePnL(t).profitMoney
+        );
+        const winningTrades = profits.filter((p) => p > 0);
+        const losingTrades = profits.filter((p) => p < 0);
+
+        const totalPnL = profits.reduce((sum, p) => sum + p, 0);
+        const grossProfit = winningTrades.reduce((sum, p) => sum + p, 0);
+        const grossLoss = Math.abs(losingTrades.reduce((sum, p) => sum + p, 0));
+
+        // Calculate average RR ratio
+        const rrRatios = closedTrades
+          .filter((t) => t.sl)
+          .map((trade) => {
+            const risk = Math.abs(trade.entry - trade.sl);
+            const reward = Math.abs(trade.exit - trade.entry);
+            return risk > 0 ? reward / risk : 0;
+          })
+          .filter((rr) => rr > 0);
+
+        return {
+          setup: setup.setup,
+          totalTrades: closedTrades.length,
+          totalPnL,
+          winRate:
+            closedTrades.length > 0
+              ? winningTrades.length / closedTrades.length
+              : 0,
+          profitFactor:
+            grossLoss === 0
+              ? grossProfit > 0
+                ? Infinity
+                : 0
+              : grossProfit / grossLoss,
+          avgRR:
+            rrRatios.length > 0
+              ? rrRatios.reduce((sum, rr) => sum + rr, 0) / rrRatios.length
+              : 0,
+          grossProfit,
+          grossLoss: Math.abs(grossLoss),
+        };
+      })
+      .filter((setup) => setup.totalTrades > 0)
+      .sort((a, b) => b.totalPnL - a.totalPnL);
+  }
+
+  /**
+   * Get goals data with current progress
+   * Used by: /api/dashboard/goals
+   */
+  static getGoalsData(trades, goals = {}) {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Filter trades for current month
+    const currentMonthTrades = trades.filter((trade) => {
+      if (!trade.exitTimestamp) return false;
+      const tradeDate = new Date(trade.exitTimestamp);
+      return (
+        tradeDate.getMonth() === currentMonth &&
+        tradeDate.getFullYear() === currentYear
+      );
+    });
+
+    // Calculate current month metrics
+    const currentMonthPnL = currentMonthTrades.reduce(
+      (sum, trade) => sum + this.computeTradePnL(trade).profitMoney,
+      0
+    );
+
+    const currentWinRate = this.winRate(currentMonthTrades);
+
+    // Calculate max drawdown
+    const equitySeries = this.equityCurve(trades);
+    const { maxDrawdown } = this.drawdowns(equitySeries);
+
+    // Default goals if not provided
+    const defaultGoals = {
+      monthlyPnL: 10000,
+      winRate: 0.6,
+      maxDrawdown: 20,
+      totalTrades: 50,
+    };
+
+    const finalGoals = { ...defaultGoals, ...goals };
+
+    return {
+      goals: [
+        {
+          name: "Monthly P&L",
+          current: currentMonthPnL,
+          target: finalGoals.monthlyPnL,
+          unit: "₹",
+          progress: Math.min(
+            (currentMonthPnL / finalGoals.monthlyPnL) * 100,
+            100
+          ),
+          achieved: currentMonthPnL >= finalGoals.monthlyPnL,
+        },
+        {
+          name: "Win Rate",
+          current: currentWinRate * 100,
+          target: finalGoals.winRate * 100,
+          unit: "%",
+          progress: Math.min((currentWinRate / finalGoals.winRate) * 100, 100),
+          achieved: currentWinRate >= finalGoals.winRate,
+        },
+        {
+          name: "Max Drawdown",
+          current: maxDrawdown,
+          target: finalGoals.maxDrawdown,
+          unit: "%",
+          progress: Math.max(
+            0,
+            Math.min((maxDrawdown / finalGoals.maxDrawdown) * 100, 100)
+          ),
+          achieved: maxDrawdown <= finalGoals.maxDrawdown,
+          isInverted: true, // Lower is better
+        },
+        {
+          name: "Total Trades",
+          current: currentMonthTrades.length,
+          target: finalGoals.totalTrades,
+          unit: "trades",
+          progress: Math.min(
+            (currentMonthTrades.length / finalGoals.totalTrades) * 100,
+            100
+          ),
+          achieved: currentMonthTrades.length >= finalGoals.totalTrades,
+        },
+      ],
+      currentMonth: {
+        pnL: currentMonthPnL,
+        winRate: currentWinRate,
+        trades: currentMonthTrades.length,
+        maxDrawdown,
+      },
+    };
+  }
+
+  /**
+   * Get equity curve data for charting
+   * Used by: /api/dashboard/equity-curve
+   */
+  static getEquityCurveData(trades, startingBalance = 10000) {
+    const equitySeries = this.equityCurve(trades, startingBalance);
+    const { drawdownSeries, maxDrawdown } = this.drawdowns(equitySeries);
+
+    // Calculate additional metrics
+    const closedTrades = trades.filter((t) => t.exit);
+    const totalPnL = closedTrades.reduce(
+      (sum, trade) => sum + this.computeTradePnL(trade).profitMoney,
+      0
+    );
+    const currentBalance =
+      equitySeries.length > 0
+        ? equitySeries[equitySeries.length - 1].balance
+        : startingBalance;
+
+    return {
+      equitySeries: equitySeries.map((point) => ({
+        timestamp: point.time,
+        balance: point.balance,
+        date: new Date(point.time).toLocaleDateString(),
+      })),
+      drawdownSeries: drawdownSeries.map((point) => ({
+        timestamp: point.time,
+        drawdown: point.drawdown,
+        date: new Date(point.time).toLocaleDateString(),
+      })),
+      summary: {
+        startingBalance,
+        currentBalance,
+        totalPnL,
+        totalReturn:
+          ((currentBalance - startingBalance) / startingBalance) * 100,
+        maxDrawdown,
+        totalTrades: closedTrades.length,
+      },
+    };
+  }
+
   // Helper method to get currency formatted values
   static formatCurrency(amount, currency = "INR") {
     return CurrencyConverter.format(amount, currency);

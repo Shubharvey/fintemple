@@ -653,15 +653,16 @@ const Reports: React.FC = () => {
           </div>
         </div>
 
-        {/* Trading Activity */}
+        {/* Trading Activity - Fixed Layout */}
         <div className="glass-card p-4 md:p-6">
           <h2 className="text-lg font-semibold text-white mb-6">
             Trading Activity
           </h2>
 
-          <div className="space-y-6">
-            <div>
-              <div className="flex justify-between items-center mb-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Stats */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-sm">
                   Average Daily Volume
                 </span>
@@ -669,7 +670,7 @@ const Reports: React.FC = () => {
                   {stats.avgDailyVolume.toFixed(2)}
                 </span>
               </div>
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-sm">
                   Total Trading Days
                 </span>
@@ -677,7 +678,7 @@ const Reports: React.FC = () => {
                   {stats.tradingDays}
                 </span>
               </div>
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-sm">Logged Days</span>
                 <span className="text-white font-semibold">
                   {stats.tradingDays}
@@ -691,21 +692,21 @@ const Reports: React.FC = () => {
               </div>
             </div>
 
-            {/* Win Rate Chart */}
+            {/* Right Column - Win Rate Chart */}
             {stats.closedTrades > 0 && (
-              <div className="pt-4 border-t border-white/10">
-                <h3 className="text-slate-400 text-sm mb-3">
+              <div className="flex flex-col">
+                <h3 className="text-slate-400 text-sm mb-3 text-center">
                   Win Rate Distribution
                 </h3>
-                <div className="h-32">
+                <div className="h-32 flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={tradeOutcomesData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={40}
-                        outerRadius={60}
+                        innerRadius={30}
+                        outerRadius={50}
                         paddingAngle={2}
                         dataKey="value"
                       >
@@ -724,14 +725,16 @@ const Reports: React.FC = () => {
                           borderRadius: "8px",
                         }}
                       />
-                      <Legend />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             )}
+          </div>
 
-            <div className="text-slate-400 text-sm pt-4 border-t border-white/10">
+          {/* Summary Text - Always at bottom */}
+          <div className="mt-6 pt-4 border-t border-white/10">
+            <div className="text-slate-400 text-sm">
               {stats.totalTrades > 0
                 ? `You've been actively trading with a daily average volume of ${stats.avgDailyVolume.toFixed(
                     2

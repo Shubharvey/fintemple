@@ -8,6 +8,7 @@ import EquityCurveChart from "../components/Dashboard/EquityCurveChart";
 import SetupPerformance from "../components/Dashboard/SetupPerformance";
 import InstrumentPerformance from "../components/Dashboard/InstrumentPerformance";
 import GoalTracking from "../components/Dashboard/GoalTracking";
+import TradingCoach from "../components/TradingCoach/TradingCoach";
 import { useDashboardData } from "../hooks/useDashboardData";
 import {
   BarChart3,
@@ -129,13 +130,14 @@ const Dashboard: React.FC = () => {
   };
 
   // Quick Stats Bar - Enhanced
+  // ✅ FIXED: Use real data from backend
   const QuickStats = () => (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
       <div className="glass-card p-4 text-center border border-green-500/20 bg-green-500/5">
         <div className="text-green-400 font-bold text-lg">
-          +₹{data?.todayPnL || 0}
+          +₹{data?.totalPnL || 0}
         </div>
-        <div className="text-slate-400 text-xs">Today P&L</div>
+        <div className="text-slate-400 text-xs">Total P&L</div>
       </div>
       <div className="glass-card p-4 text-center border border-blue-500/20 bg-blue-500/5">
         <div className="text-blue-400 font-bold text-lg">
@@ -149,7 +151,7 @@ const Dashboard: React.FC = () => {
             (data?.winRate || 0) > 50 ? "text-green-400" : "text-red-400"
           }`}
         >
-          {data?.winRate || 0}%
+          {data?.winRate?.toFixed(1) || 0}%
         </div>
         <div className="text-slate-400 text-xs">Win Rate</div>
       </div>
@@ -161,7 +163,6 @@ const Dashboard: React.FC = () => {
       </div>
     </div>
   );
-
   // Mobile View - ALL METRICS VISIBLE
   const MobileDashboard = () => (
     <div className="pb-20 space-y-4">
@@ -480,6 +481,9 @@ const Dashboard: React.FC = () => {
       <div className="hidden lg:block">
         <DesktopDashboard />
       </div>
+
+      {/* Add TradingCoach component */}
+      <TradingCoach />
     </>
   );
 };

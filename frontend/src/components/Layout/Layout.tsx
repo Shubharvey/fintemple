@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import BottomNavigation from "./BottomNavigation";
+import TradingCoach from "../TradingCoach/TradingCoach";
 import { useAuth } from "../../hooks/useAuth";
 
 interface LayoutProps {
@@ -12,6 +13,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [showTradingCoach, setShowTradingCoach] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -33,6 +35,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     } else {
       setSidebarCollapsed(!sidebarCollapsed);
     }
+  };
+
+  const handleOpenTradingCoach = () => {
+    setShowTradingCoach(true);
+  };
+
+  const handleCloseTradingCoach = () => {
+    setShowTradingCoach(false);
   };
 
   return (
@@ -68,6 +78,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={toggleSidebar}
           isMobile={isMobile}
+          onOpenTradingCoach={handleOpenTradingCoach}
         />
 
         <main className="flex-1 overflow-y-auto pb-20 md:pb-6 p-4 md:p-6">
@@ -77,6 +88,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Bottom Navigation - Mobile Only */}
         {isMobile && <BottomNavigation user={user} />}
       </div>
+
+      {/* Trading Coach */}
+      {showTradingCoach && isMobile && (
+        <TradingCoach isMobile={true} onClose={handleCloseTradingCoach} />
+      )}
+
+      {!isMobile && <TradingCoach />}
     </div>
   );
 };

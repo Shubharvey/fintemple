@@ -10,7 +10,7 @@ interface InstrumentPerformanceProps {
 const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
   data = [],
 }) => {
-  const [sortBy, setSortBy] = useState<"winRate" | "avgRR" | "netPnL">(
+  const [sortBy, setSortBy] = useState<"winRate" | "avgRR" | "totalPnL">(
     "winRate"
   );
 
@@ -23,8 +23,8 @@ const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
           return b.winRate - a.winRate;
         case "avgRR":
           return b.avgRR - a.avgRR;
-        case "netPnL":
-          return b.netPnL - a.netPnL;
+        case "totalPnL":
+          return b.totalPnL - a.totalPnL;
         default:
           return 0;
       }
@@ -41,7 +41,7 @@ const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
     );
   };
 
-  const handleSort = (field: "winRate" | "avgRR" | "netPnL") => {
+  const handleSort = (field: "winRate" | "avgRR" | "totalPnL") => {
     if (sortBy === field) {
       setSortBy("winRate"); // Reset to default if already sorted by this field
     } else {
@@ -93,16 +93,16 @@ const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
             {getSortIcon("avgRR")}
           </button>
           <button
-            onClick={() => handleSort("netPnL")}
+            onClick={() => handleSort("totalPnL")}
             className={`flex items-center space-x-1 text-xs font-medium transition-colors ${
-              sortBy === "netPnL"
+              sortBy === "totalPnL"
                 ? "text-blue-400"
                 : "text-slate-400 hover:text-white"
             }`}
           >
             <span className="hidden sm:inline">Net P&L</span>
             <span className="sm:hidden">P&L</span>
-            {getSortIcon("netPnL")}
+            {getSortIcon("totalPnL")}
           </button>
         </div>
       </div>
@@ -146,7 +146,7 @@ const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
                   </div>
                 </td>
                 <td className="p-1 md:p-2 text-slate-300 text-xs text-right">
-                  {instrument.trades}
+                  {instrument.totalTrades}
                 </td>
                 <td className="p-1 md:p-2 text-slate-300 text-xs text-right">
                   <span
@@ -156,7 +156,7 @@ const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
                         : "text-yellow-400"
                     }
                   >
-                    {instrument.winRate}%
+                    {(instrument.winRate * 100).toFixed(1)}%
                   </span>
                 </td>
                 <td className="p-1 md:p-2 text-slate-300 text-xs text-right">
@@ -165,14 +165,16 @@ const InstrumentPerformance: React.FC<InstrumentPerformanceProps> = ({
                 <td className="p-1 md:p-2 text-sm text-right">
                   <span
                     className={`font-medium ${
-                      instrument.netPnL >= 0 ? "text-green-400" : "text-red-400"
+                      instrument.totalPnL >= 0
+                        ? "text-green-400"
+                        : "text-red-400"
                     }`}
                   >
                     <span className="hidden sm:inline">
-                      {formatCurrency(instrument.netPnL)}
+                      {formatCurrency(instrument.totalPnL)}
                     </span>
                     <span className="sm:hidden">
-                      {formatCompactCurrency(instrument.netPnL)}
+                      {formatCompactCurrency(instrument.totalPnL)}
                     </span>
                   </span>
                 </td>

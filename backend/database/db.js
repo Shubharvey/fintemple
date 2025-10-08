@@ -7,12 +7,22 @@ let isInitialized = false;
 function init() {
   if (isInitialized) return db;
 
-  db = new sqlite3.Database(path.join(__dirname, "trading_journal.db"));
+  db = new sqlite3.Database(
+    path.join(__dirname, "trading_journal.db"),
+    (err) => {
+      if (err) {
+        console.error("❌ Database connection error:", err);
+        return;
+      }
+      console.log("✅ Connected to SQLite database");
+    }
+  );
 
   // Create tables
   db.serialize(() => {
     // Users table
-    db.run(`
+    db.run(
+      `
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -21,10 +31,16 @@ function init() {
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
       )
-    `);
+    `,
+      (err) => {
+        if (err) console.error("❌ Error creating users table:", err);
+        else console.log("✅ Users table ready");
+      }
+    );
 
     // Trades table
-    db.run(`
+    db.run(
+      `
       CREATE TABLE IF NOT EXISTS trades (
         id TEXT PRIMARY KEY,
         timestamp TEXT NOT NULL,
@@ -50,10 +66,16 @@ function init() {
         createdAt TEXT DEFAULT (datetime('now')),
         updatedAt TEXT DEFAULT (datetime('now'))
       )
-    `);
+    `,
+      (err) => {
+        if (err) console.error("❌ Error creating trades table:", err);
+        else console.log("✅ Trades table ready");
+      }
+    );
 
     // Instruments table
-    db.run(`
+    db.run(
+      `
       CREATE TABLE IF NOT EXISTS instruments (
         symbol TEXT PRIMARY KEY,
         name TEXT,
@@ -64,17 +86,22 @@ function init() {
         quoteToAccountRate REAL DEFAULT 1,
         createdAt TEXT DEFAULT (datetime('now'))
       )
-    `);
+    `,
+      (err) => {
+        if (err) console.error("❌ Error creating instruments table:", err);
+        else console.log("✅ Instruments table ready");
+      }
+    );
   });
 
   isInitialized = true;
-  console.log("Database initialized successfully with sqlite3");
+  console.log("✅ Database initialized successfully");
   return db;
 }
 
 function getDb() {
   if (!isInitialized) {
-    console.log("Database not initialized, initializing now...");
+    console.log("⚠️ Database not initialized, initializing now...");
     return init();
   }
   return db;
@@ -84,8 +111,10 @@ function getDb() {
 function runQuery(query, params = []) {
   return new Promise((resolve, reject) => {
     db.run(query, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
+      if (err) {
+        console.error("❌ Database runQuery error:", err);
+        reject(err);
+      } else resolve(this);
     });
   });
 }
@@ -93,8 +122,10 @@ function runQuery(query, params = []) {
 function getQuery(query, params = []) {
   return new Promise((resolve, reject) => {
     db.get(query, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
+      if (err) {
+        console.error("❌ Database getQuery error:", err);
+        reject(err);
+      } else resolve(row);
     });
   });
 }
@@ -102,8 +133,10 @@ function getQuery(query, params = []) {
 function allQuery(query, params = []) {
   return new Promise((resolve, reject) => {
     db.all(query, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
+      if (err) {
+        console.error("❌ Database allQuery error:", err);
+        reject(err);
+      } else resolve(rows);
     });
   });
 }

@@ -27,29 +27,23 @@ const formatCompactINR = (amount: number): string => {
 };
 
 const KPICards: React.FC<KPICardsProps> = ({ data }) => {
-  // Calculate additional metrics that aren't in the base DashboardSummary
-  const totalPnL =
-    data?.equityCurve?.length > 0
-      ? data.equityCurve[data.equityCurve.length - 1].balance - 10000
-      : 0;
-
-  const totalTrades =
-    data?.equityCurve?.length > 0 ? data.equityCurve.length : 0;
-  const closedTrades =
-    data?.equityCurve?.length > 0 ? data.equityCurve.length : 0; // Simplified
+  // ✅ FIXED: Use backend-calculated values instead of recalculating
+  const totalPnL = data?.totalPnL || 0;
+  const totalTrades = data?.totalTrades || 0;
+  const closedTrades = data?.closedTrades || 0;
 
   const kpis = [
     {
       title: "Profit Factor",
       value: data?.profitFactor?.toFixed(2) || "0.00",
-      change: "0.00", // Remove change calculation for now
+      change: data?.profitFactorChange?.toFixed(2) || "0.00",
       gradient: "from-green-400 to-blue-500",
       showLiveData: true,
     },
     {
       title: "Win Rate",
       value: data?.winRate ? `${data.winRate.toFixed(1)}%` : "0.0%",
-      change: "0.0%", // Remove change calculation for now
+      change: data?.winRateChange?.toFixed(1) || "0.0%",
       gradient: "from-purple-400 to-pink-500",
       showLiveData: false,
     },
@@ -61,28 +55,28 @@ const KPICards: React.FC<KPICardsProps> = ({ data }) => {
               data.avgLoss
             )}`
           : "₹0 / ₹0",
-      change: "0.00", // Remove change calculation for now
+      change: data?.avgWinLossRatioChange?.toFixed(2) || "0.00",
       gradient: "from-orange-400 to-red-500",
       showLiveData: true,
     },
     {
       title: "Total P&L",
       value: totalPnL ? formatCompactINR(totalPnL) : "₹0",
-      change: "0.0%", // Remove change calculation for now
+      change: data?.totalPnLChange?.toFixed(1) || "0.0%",
       gradient: "from-blue-400 to-cyan-500",
       showLiveData: true,
     },
     {
       title: "Max Drawdown",
       value: data?.maxDrawdown ? `${data.maxDrawdown.toFixed(1)}%` : "0.0%",
-      change: "0.0%", // Remove change calculation for now
+      change: data?.maxDrawdownChange?.toFixed(1) || "0.0%",
       gradient: "from-indigo-400 to-purple-500",
       showLiveData: false,
     },
     {
       title: "Total Trades",
       value: totalTrades.toString() || "0",
-      change: "0", // Remove change calculation for now
+      change: data?.totalTradesChange?.toString() || "0",
       gradient: "from-yellow-400 to-orange-500",
       showLiveData: false,
     },
@@ -114,9 +108,9 @@ const KPICards: React.FC<KPICardsProps> = ({ data }) => {
             <div className="text-2xl font-bold text-white">{kpi.value}</div>
             <div
               className={`text-sm px-2 py-1 rounded-lg ${
-                kpi.change.startsWith("+")
+                kpi.change?.startsWith("+")
                   ? "text-green-400 bg-green-400/20"
-                  : kpi.change.startsWith("-")
+                  : kpi.change?.startsWith("-")
                   ? "text-red-400 bg-red-400/20"
                   : "text-slate-400 bg-slate-400/20"
               }`}

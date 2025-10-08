@@ -25,6 +25,9 @@ const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
   const getFilteredData = () => {
     if (!data || data.length === 0) return [];
 
+    // Handle both data formats: direct array or object with equitySeries property
+    const equityData = Array.isArray(data) ? data : data.equitySeries || [];
+
     const now = new Date();
     let startDate: Date;
 
@@ -36,10 +39,12 @@ const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
-        return data; // Return all data for "all" timeframe
+        return equityData; // Return all data for "all" timeframe
     }
 
-    return data.filter((item: any) => new Date(item.date) >= startDate);
+    return equityData.filter(
+      (item: any) => new Date(item.timestamp || item.date) >= startDate
+    );
   };
 
   const chartData = getFilteredData();
@@ -105,12 +110,11 @@ const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid
-                strokeDasharray="3 3"
                 stroke="#374151"
                 strokeDasharray={window.innerWidth < 768 ? "1 1" : "3 3"}
               />
               <XAxis
-                dataKey="date"
+                dataKey="timestamp" // Changed from 'date' to 'timestamp'
                 stroke="#9ca3af"
                 fontSize={window.innerWidth < 768 ? 10 : 12}
                 tickFormatter={formatXAxisTick}
@@ -131,7 +135,10 @@ const EquityCurveChart: React.FC<EquityCurveChartProps> = ({
                   border: "1px solid #374151",
                   borderRadius: "8px",
                 }}
-                formatter={(value) => [formatCurrency(Number(value)), "P&L"]}
+                formatter={(value) => [
+                  formatCurrency(Number(value)),
+                  "Balance",
+                ]}
                 labelFormatter={(label) => {
                   const date = new Date(label);
                   return formatDate(label);

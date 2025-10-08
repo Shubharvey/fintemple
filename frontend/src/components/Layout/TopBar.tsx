@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Settings, Sun, Moon, Palette, Menu, User, LogOut } from "lucide-react";
+import {
+  Settings,
+  Sun,
+  Moon,
+  Palette,
+  Menu,
+  User,
+  LogOut,
+  MessageCircle,
+} from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 
 interface TopBarProps {
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   isMobile?: boolean;
+  onOpenTradingCoach?: () => void; // Add this prop
 }
 
 type Theme = "dark" | "light";
@@ -15,6 +25,7 @@ const TopBar: React.FC<TopBarProps> = ({
   sidebarCollapsed,
   onToggleSidebar,
   isMobile = false,
+  onOpenTradingCoach, // Add this prop
 }) => {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState("");
@@ -94,6 +105,13 @@ const TopBar: React.FC<TopBarProps> = ({
     setShowUserMenu(false);
   };
 
+  // Handle Trading Coach button click
+  const handleTradingCoachClick = () => {
+    if (onOpenTradingCoach) {
+      onOpenTradingCoach();
+    }
+  };
+
   return (
     <div className="glass-nav h-16 flex items-center justify-between px-4 md:px-6 relative">
       <div className="flex items-center space-x-4">
@@ -113,7 +131,18 @@ const TopBar: React.FC<TopBarProps> = ({
       </div>
 
       <div className="flex items-center space-x-2 md:space-x-4">
-        {/* Live Indian Time - Now visible on both desktop and mobile */}
+        {/* Trading Coach Button - Mobile Only */}
+        {isMobile && onOpenTradingCoach && (
+          <button
+            onClick={handleTradingCoachClick}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors text-blue-400"
+            aria-label="Trading Coach"
+          >
+            <MessageCircle className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Live Indian Time */}
         <div className="flex items-center space-x-1 md:space-x-2 bg-white/5 rounded-lg px-2 py-1 md:px-3 md:py-2">
           <Palette className="w-3 h-3 md:w-4 md:h-4 text-slate-300" />
           <span className="text-xs md:text-sm font-medium text-slate-300">

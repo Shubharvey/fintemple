@@ -134,7 +134,7 @@ router.get("/kpis", async (req, res) => {
   }
 });
 
-// Other routes remain the same...
+// GET /api/dashboard/hourly-summary
 router.get("/hourly-summary", async (req, res) => {
   try {
     const trades = await allQuery("SELECT * FROM trades");
@@ -146,6 +146,7 @@ router.get("/hourly-summary", async (req, res) => {
   }
 });
 
+// GET /api/dashboard/recent-trades
 router.get("/recent-trades", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 5;
@@ -166,6 +167,7 @@ router.get("/recent-trades", async (req, res) => {
   }
 });
 
+// GET /api/dashboard/daily-summary
 router.get("/daily-summary", async (req, res) => {
   try {
     const trades = await allQuery("SELECT * FROM trades");
@@ -176,6 +178,69 @@ router.get("/daily-summary", async (req, res) => {
     res.json(dailySummary);
   } catch (error) {
     console.error("Error in daily summary:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ✅ NEW ENDPOINTS FOR PERFORMANCE ANALYTICS
+
+// GET /api/dashboard/by-instrument
+router.get("/by-instrument", async (req, res) => {
+  try {
+    const trades = await allQuery("SELECT * FROM trades");
+    const instrumentPerformance = TradingAnalytics.instrumentBreakdown(trades);
+    res.json(instrumentPerformance);
+  } catch (error) {
+    console.error("Error in instrument breakdown:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/dashboard/by-setup
+router.get("/by-setup", async (req, res) => {
+  try {
+    const trades = await allQuery("SELECT * FROM trades");
+    const setupPerformance = TradingAnalytics.strategyBreakdown(trades);
+    res.json(setupPerformance);
+  } catch (error) {
+    console.error("Error in setup breakdown:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/dashboard/goals
+router.get("/goals", async (req, res) => {
+  try {
+    const trades = await allQuery("SELECT * FROM trades");
+
+    // Calculate current metrics
+    const winRate = TradingAnalytics.winRate(trades) * 100;
+    const equitySeries = TradingAnalytics.equityCurve(trades);
+    const currentMonthPnL = TradingAnalytics.currentMonthPnL(trades);
+    const { maxDrawdown } = TradingAnalytics.drawdowns(equitySeries);
+
+    res.json({
+      winRateGoal: 60,
+      monthlyPnLGoal: 10000,
+      maxDrawdownGoal: 5000,
+      winRate: winRate,
+      monthlyPnL: currentMonthPnL,
+      maxDrawdown: maxDrawdown,
+    });
+  } catch (error) {
+    console.error("Error in goals:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/dashboard/equity-curve
+router.get("/equity-curve", async (req, res) => {
+  try {
+    const trades = await allQuery("SELECT * FROM trades");
+    const equityCurve = TradingAnalytics.equityCurve(trades);
+    res.json(equityCurve);
+  } catch (error) {
+    console.error("Error in equity curve:", error);
     res.status(500).json({ error: error.message });
   }
 });
